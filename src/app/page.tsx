@@ -79,8 +79,10 @@ export default function Home() {
                 </div>
               </label>
             </div>
+            
           </header>
           <main className="flex-grow">
+            
             <div className="py-10">
               <div className="@container">
                 <div className="@[480px]:p-4">
@@ -96,16 +98,18 @@ export default function Home() {
                       <h1 className="text-white text-4xl font-black leading-tight tracking-[-0.033em] @[480px]:text-5xl @[480px]:font-black @[480px]:leading-tight @[480px]:tracking-[-0.033em]">
                         Experience the Magic of Nigerian Theater
                       </h1>
-                      <   a href="/Ticket" >
+                      
                       <h2 className="text-white/90 text-sm font-normal leading-normal @[480px]:text-base @[480px]:font-normal @[480px]:leading-normal max-w-2xl mx-auto">
                         Book your tickets now and witness unforgettable
                         performances at the heart of Nigerian culture.
                       </h2>
-                       
+                     
                     </div>
+                    <a href="/Ticket" >  
                     <button className="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-12 px-5 bg-primary text-background-dark text-base font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
                       <span className="truncate">Book Tickets</span>
-                    </button>
+                    </button> 
+                      </a>
                   </div>
                 </div>
               </div>
