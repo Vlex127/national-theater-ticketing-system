@@ -127,7 +127,7 @@ export default function PayoutPage() {
                     <div className="flex flex-col space-y-4">
                       <label className="flex items-center space-x-3 p-4 rounded-lg border border-transparent has-[:checked]:border-primary has-[:checked]:bg-primary/10 cursor-pointer transition-colors">
                         <input
-                          defaultChecked=""
+                          defaultChecked={true}
                           className="form-radio text-primary bg-transparent border-gray-600 focus:ring-primary"
                           name="payment_method"
                           type="radio"
