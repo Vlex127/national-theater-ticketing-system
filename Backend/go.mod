@@ -1,4 +1,4 @@
-module myapp-backend
+module github.com/Vlex127/national-theater-ticketing-system/backend
 
 go 1.25.3
 
