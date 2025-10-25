@@ -1,9 +1,0 @@
-services:
-  - type: web
-    name: national-theater-backend
-    env: go
-    buildCommand: go version && go build -o app
-    envVars:
-      - key: GO_VERSION
-        value: 1.25.3
-    startCommand: ./app
