@@ -66,14 +66,11 @@ export default function Home() {
         <span className="material-icons text-lg">home</span>
         Home
       </a>
-      <a className="text-gray-300 hover:text-amber-400 transition-colors duration-200 text-base font-medium py-3 flex items-center gap-2" href="#" onClick={() => setIsMenuOpen(false)}>
+      <a className="text-gray-300 hover:text-amber-400 transition-colors duration-200 text-base font-medium py-3 flex items-center gap-2" href="/Shows" onClick={() => setIsMenuOpen(false)}>
         <span className="material-icons text-lg">theater_comedy</span>
         Shows
       </a>
-      <a className="text-gray-300 hover:text-amber-400 transition-colors duration-200 text-base font-medium py-3 flex items-center gap-2" href="#" onClick={() => setIsMenuOpen(false)}>
-        <span className="material-icons text-lg">info</span>
-        About
-      </a>
+
       <a className="text-gray-300 hover:text-amber-400 transition-colors duration-200 text-base font-medium py-3 flex items-center gap-2" href="#" onClick={() => setIsMenuOpen(false)}>
         <span className="material-icons text-lg">contact_support</span>
         Contact
@@ -427,7 +424,7 @@ export default function Home() {
                     { icon: 'photo_library', text: 'Gallery' },
                     { icon: 'volunteer_activism', text: 'Support Us' }
                   ].map((link) => (
-                    <a key={link.text} href="#" className="block text-gray-400 hover:text-amber-400 transition-colors flex items-center gap-2 text-sm sm:text-base py-1">
+                    <a key={link.text} href="/Shows" className="block text-gray-400 hover:text-amber-400 transition-colors flex items-center gap-2 text-sm sm:text-base py-1">
                       <span className="material-icons text-base">{link.icon}</span>
                       {link.text}
                     </a>
@@ -468,7 +465,7 @@ export default function Home() {
                   { icon: 'gavel', text: 'Terms' },
                   { icon: 'help', text: 'FAQs' }
                 ].map((link) => (
-                  <a key={link.text} className="text-gray-400 hover:text-amber-400 transition-colors text-xs sm:text-sm flex items-center gap-1" href="#">
+                  <a key={link.text} className="text-gray-400 hover:text-amber-400 transition-colors text-xs sm:text-sm flex items-center gap-1" href="/Privacy">
                     <span className="material-icons text-xs sm:text-sm">{link.icon}</span>
                     {link.text}
                   </a>
