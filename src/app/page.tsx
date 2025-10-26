@@ -4,6 +4,8 @@
 import { useState, useEffect } from 'react';
 import Head from 'next/head';
 import 'material-icons/iconfont/material-icons.css';
+import { Spinner } from "@/components/ui/spinner"
+
 
 interface Event {
   id: number;
@@ -79,7 +81,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+          <Spinner />
       </div>
     );
   }
@@ -221,10 +223,7 @@ export default function Home() {
           <span>Book Your Experience</span>
           <span className="material-icons text-sm sm:text-base">arrow_forward</span>
         </button>
-        <button className="flex items-center gap-2 border-2 border-white/20 hover:border-amber-400 text-white font-semibold px-4 sm:px-8 py-2 sm:py-4 rounded-full transition-all duration-300 backdrop-blur-sm w-full xs:w-auto max-w-xs sm:max-w-none justify-center">
-          <span>View Calendar</span>
-          <span className="material-icons text-sm sm:text-base">calendar_month</span>
-        </button>
+
       </div>
     </div>
   </div>
@@ -288,7 +287,7 @@ export default function Home() {
                         4.8
                       </span>
                     </div>
-                    <a href={`/details/${event.id}`}>
+                    <a href={`/Details/${event.id}`}>
                       <button className="w-full bg-gray-700 hover:bg-amber-500 hover:text-gray-900 text-white font-semibold py-2 sm:py-3 rounded-lg transition-all duration-300 group-hover:transform group-hover:scale-105 flex items-center justify-center gap-2 text-xs sm:text-sm lg:text-base">
                         <span className="material-icons text-base">confirmation_number</span>
                         Get Tickets
