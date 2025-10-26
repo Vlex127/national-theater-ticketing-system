@@ -54,7 +54,7 @@ export default function DetailsPage() {
 
             {/* Desktop Navigation */}
             <nav className="hidden lg:flex items-center gap-6 xl:gap-8">
-              <NavLinks />
+              <NavLinks setIsMenuOpen={setIsMenuOpen} />
             </nav>
 
             {/* Search & CTA */}
@@ -91,7 +91,7 @@ export default function DetailsPage() {
           {isMenuOpen && (
             <div className="lg:hidden bg-gray-800 rounded-2xl mt-2 p-6 shadow-2xl animate-in slide-in-from-top-4 duration-300">
               <nav className="flex flex-col gap-2">
-                <NavLinks />
+                <NavLinks setIsMenuOpen={setIsMenuOpen} />
                 <div className="pt-4 border-t border-gray-700">
                   <div className="flex items-center bg-gray-700 rounded-lg px-4 py-3 mb-4">
                     <input
