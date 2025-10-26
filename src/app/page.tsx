@@ -1,8 +1,8 @@
 "use client";
 import 'material-icons/iconfont/material-icons.css';
-import Image from "next/image";
 import Head from "next/head";
 import { useState, useEffect } from "react";
+
 const ACCENT_COLOR = "text-amber-500";
 const ACCENT_BG = "bg-amber-500";
 const DARK_BG = "bg-gray-900";
@@ -70,7 +70,6 @@ export default function Home() {
         <span className="material-icons text-lg">theater_comedy</span>
         Shows
       </a>
-
       <a className="text-gray-300 hover:text-amber-400 transition-colors duration-200 text-base font-medium py-3 flex items-center gap-2" href="#" onClick={() => setIsMenuOpen(false)}>
         <span className="material-icons text-lg">contact_support</span>
         Contact
@@ -88,7 +87,7 @@ export default function Home() {
       </Head>
 
       <div className={`min-h-screen ${DARK_BG} text-white font-sans`}>
-        {/* Enhanced Navigation */}
+        {/* Navigation */}
         <header className={`fixed w-full z-50 transition-all duration-300 ${
           isScrolled ? 'bg-gray-900/95 backdrop-blur-md shadow-lg' : 'bg-transparent'
         }`}>
@@ -114,7 +113,8 @@ export default function Home() {
 
               {/* Search & CTA */}
               <div className="flex items-center gap-2 sm:gap-4">
-                <div className="hidden lg:flex items-center bg-gray-800 rounded-full pl-4 pr-2 py-2">
+                {/* Search - hidden on small screens */}
+                <div className="hidden lg:flex items-center bg-gray-800 rounded-full px-4 py-2">
                   <input
                     type="text"
                     placeholder="Search events..."
@@ -125,7 +125,8 @@ export default function Home() {
                   </button>
                 </div>
 
-                <button className="hidden sm:flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-all duration-200 hover:scale-105 text-sm sm:text-base">
+                {/* Book Tickets Button */}
+                <button className="hidden sm:flex items-center gap-2 bg-amber-500 hover:bg-amber-600 text-gray-900 font-semibold px-4 sm:px-6 py-2 sm:py-3 rounded-full transition-all duration-200 text-sm sm:text-base">
                   <span className="material-icons text-lg">confirmation_number</span>
                   <span className="hidden sm:inline">Book Tickets</span>
                 </button>
@@ -135,13 +136,10 @@ export default function Home() {
                   className="lg:hidden text-white p-2 rounded-lg hover:bg-gray-800 transition-colors"
                   onClick={() => setIsMenuOpen(!isMenuOpen)}
                 >
-                  <span className="material-icons text-2xl">
-                    {isMenuOpen ? "close" : "menu"}
-                  </span>
+                  <span className="material-icons text-2xl">{isMenuOpen ? "close" : "menu"}</span>
                 </button>
               </div>
             </div>
-
             {/* Mobile Menu */}
             {isMenuOpen && (
               <div className="lg:hidden bg-gray-800 rounded-2xl mt-2 p-6 shadow-2xl animate-in slide-in-from-top-4 duration-300">
@@ -169,15 +167,15 @@ export default function Home() {
 
         {/* Hero Section */}
         <section className="relative pt-16 pb-20 sm:pt-20 sm:pb-32 overflow-hidden">
-          <div 
+          <div
             className="absolute inset-0 bg-cover bg-center bg-no-repeat"
             style={{
               backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.8)), url("https://lh3.googleusercontent.com/aida-public/AB6AXuB0EYhS5bCiNX-Z1FJsKlhKH8-985FSAgHsn32DFMW-AeSFwJOyDWaGAUa4CrlFmhRtfSxtnbYiNTiaIjbyFjQ8hAGSp5iKeQBZn75pQlQpXuESqmR7cbw4uzCjNWMkL8SJGjeT0NQ6RtMBN8xtTn6p7ltUMvJ-tzlJrqFCeEo297l7_bo_mbtSuTIw-LvmWo39ccfs1aSsr0Om3FqfI5o9W502I-fCWZVrAfxKVwhTwqLrXJE2iR0glRCArmIvTYNnl0oB9pvy0OY")`
             }}
           />
-          
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <div className="max-w-4xl mx-auto">
+              {/* Show on small screens as well */}
               <div className="inline-flex items-center gap-2 bg-amber-500/20 backdrop-blur-sm rounded-full px-3 sm:px-4 py-1 sm:py-2 mb-6 sm:mb-8 border border-amber-500/30">
                 <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-amber-400 rounded-full animate-pulse"></span>
                 <span className="text-amber-400 text-xs sm:text-sm font-semibold uppercase tracking-wider flex items-center gap-1">
@@ -185,23 +183,20 @@ export default function Home() {
                   Now Showing
                 </span>
               </div>
-              
               <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl font-black tracking-tight mb-4 sm:mb-6 leading-tight">
                 Where Nigerian
                 <span className={`block ${ACCENT_COLOR} mt-2`}>Culture Comes Alive</span>
               </h1>
-              
               <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-300 mb-8 sm:mb-12 max-w-3xl mx-auto leading-relaxed px-4">
                 Experience world-class performances at Nigeria's premier cultural landmark. 
                 From traditional dance to contemporary theater.
               </p>
-
+              {/* Buttons stacking on small screens */}
               <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 justify-center items-center px-4">
                 <button className={`flex items-center gap-2 sm:gap-3 ${ACCENT_BG} hover:bg-amber-600 text-gray-900 font-bold text-base sm:text-lg px-6 sm:px-8 py-3 sm:py-4 rounded-full transition-all duration-300 hover:scale-105 shadow-2xl w-full sm:w-auto justify-center`}>
                   <span>Book Your Experience</span>
                   <span className="material-icons">arrow_forward</span>
                 </button>
-                
                 <button className="flex items-center gap-2 sm:gap-3 border-2 border-white/20 hover:border-amber-400 text-white font-semibold px-6 sm:px-8 py-3 sm:py-4 rounded-full transition-all duration-300 backdrop-blur-sm w-full sm:w-auto justify-center">
                   <span>View Calendar</span>
                   <span className="material-icons">calendar_month</span>
@@ -224,6 +219,7 @@ export default function Home() {
               </p>
             </div>
 
+            {/* Grid of events, adapt to screen size */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 sm:gap-8">
               {events.map((event, index) => (
                 <div 
@@ -284,6 +280,7 @@ export default function Home() {
         <section className="py-12 sm:py-16 lg:py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-8 sm:gap-12 lg:gap-16 items-center">
+              {/* Content */}
               <div className="order-2 lg:order-1">
                 <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black mb-4 sm:mb-6 flex items-center gap-2 sm:gap-3">
                   <span className="material-icons text-amber-500 text-2xl sm:text-3xl md:text-4xl">history_edu</span>
@@ -309,7 +306,9 @@ export default function Home() {
                   </p>
                 </div>
                 
+                {/* Stats */}
                 <div className="flex flex-wrap gap-3 sm:gap-4 mt-6 sm:mt-8">
+                  {/* Stats cards */}
                   <div className="text-center p-3 sm:p-4 bg-gray-800 rounded-xl flex-1 min-w-[100px] sm:min-w-[120px]">
                     <div className="text-xl sm:text-2xl font-black text-amber-400 flex items-center justify-center gap-1">
                       <span className="material-icons text-lg sm:text-xl">event</span>
@@ -334,6 +333,7 @@ export default function Home() {
                 </div>
               </div>
               
+              {/* Images */}
               <div className="relative order-1 lg:order-2">
                 <div className="grid grid-cols-2 gap-3 sm:gap-4">
                   <img 
@@ -362,13 +362,17 @@ export default function Home() {
         {/* Newsletter Section */}
         <section className="py-12 sm:py-16 bg-gradient-to-r from-amber-500/10 to-amber-600/10">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            {/* Icon */}
             <div className="flex justify-center mb-4 sm:mb-6">
               <span className="material-icons text-amber-500 text-3xl sm:text-4xl">mail</span>
             </div>
+            {/* Heading */}
             <h3 className="text-2xl sm:text-3xl font-black mb-3 sm:mb-4">Stay in the Spotlight</h3>
+            {/* Description */}
             <p className="text-gray-300 mb-6 sm:mb-8 text-sm sm:text-base lg:text-lg px-4">
               Get exclusive updates on upcoming shows, special events, and early bird tickets.
             </p>
+            {/* Input & Button stack on small screens */}
             <div className="flex flex-col sm:flex-row gap-3 sm:gap-4 max-w-md mx-auto px-4">
               <input
                 type="email"
