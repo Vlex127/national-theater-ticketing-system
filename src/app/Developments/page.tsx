@@ -1,5 +1,5 @@
 import Image from "next/image";
-
+import 'material-icons/iconfont/material-icons.css';
 export default function DevelopmentsPage() {
   return (
   <div>
