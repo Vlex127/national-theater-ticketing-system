@@ -4,17 +4,18 @@ import pool from '@/app/lib/db';
 
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   let client;
   try {
-    console.log('Fetching event with ID:', params.id);
+    const { id } = await params;
+    console.log('Fetching event with ID:', id);
     client = await pool.connect();
-    const result = await client.query('SELECT * FROM events WHERE id = $1', [params.id]);
+    const result = await client.query('SELECT * FROM events WHERE id = $1', [id]);
     console.log('Query result:', result.rows);
     
     if (result.rows.length === 0) {
-      console.log('No event found with ID:', params.id);
+      console.log('No event found with ID:', id);
       return new NextResponse(
         JSON.stringify({ error: 'Event not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
