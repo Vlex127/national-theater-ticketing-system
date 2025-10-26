@@ -9,7 +9,7 @@ A modern, responsive, and user-friendly ticketing system for the National Theate
 - 🔐 User authentication with Google OAuth
 - 📱 Fully responsive design
 - 🌓 Dark mode support
-- ⚡ Fast performance with Next.js 14
+- ⚡ Fast performance with Next.js 16
 
 ## 🚀 Getting Started
 
