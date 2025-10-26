@@ -1,20 +1,7 @@
-// src/app/page.tsx
-'use client';
-
-import { useState, useEffect } from 'react';
-import Head from 'next/head';
+"use client";
 import 'material-icons/iconfont/material-icons.css';
-
-interface Event {
-  id: number;
-  title: string;
-  description: string;
-  image_url: string;
-  link: string;
-  date: string;
-  venue: string;
-  category: string;
-}
+import Head from "next/head";
+import { useState, useEffect } from "react";
 
 const ACCENT_COLOR = "text-amber-500";
 const ACCENT_BG = "bg-amber-500";
@@ -25,9 +12,6 @@ const BORDER_COLOR = "border-gray-700";
 export default function Home() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -37,26 +21,44 @@ export default function Home() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // Fetch events from API
-  useEffect(() => {
-    async function fetchEvents() {
-      try {
-        const response = await fetch('/api/events');
-        if (!response.ok) {
-          throw new Error('Failed to fetch events');
-        }
-        const data = await response.json();
-        setEvents(data);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'An error occurred');
-        console.error('Error fetching events:', err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchEvents();
-  }, []);
+  const events = [
+    {
+      title: "FELA! The Musical",
+      description: "The electrifying story of a legend.",
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuAhtbVFkgv5EwpP9RS3JWVOoi0KZl1BgefXXntLuWO5A8XUA2Yms8ksA5JXYewDBdJA_buf9GsK78Co7gLRKH0HuPeUPRARVy4BTE84KSiiXrNp-_v3m_9x2SLURwRdXXlrYjW7_s253J7NO51a7i11DkQIo8R4WP5BjJK2ZEYUWjRWv-FGvI4WIIf6g5pmhvFJUNii-xOq8RMchdlJBW0LtJxBzIiiFSdiOUb5AQzG1o2x23n4FnDMqBf4MQS8nOzaVwGgDkkBRvc",
+      link: "#",
+      date: "Dec 15, 2024",
+      venue: "Main Hall",
+      category: "Musical"
+    },
+    {
+      title: "The Lion and the Jewel",
+      description: "A classic Nigerian comedy.",
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDyYxCKkIsziTyLRAA0iQe9Ld9YuljtgZecmTq0Oar-1bS6MwvdbYIFSu3EdRNsgz-w1_4R4DdUkMUUyBXsMeQgJqzh_2iHuemYiHtkC_q0I3dCV6aeqQ2wZzQb8NdjADPUF2FXWkl1JkW-X-I_s3tic_3iP-78sA_lO1c1rEgvK5SZpUfhJc1EcpIORPCC9PEb3xI_I3sUBBU7suwukLqocUU1880O2f_-67qz_UOiMAg-dlr1i8PyTE_OlmXQ1No8q0tNpmtkr8Q",
+      link: "#",
+      date: "Jan 20, 2025",
+      venue: "Drama Studio",
+      category: "Drama"
+    },
+    {
+      title: "Death and the King's Horseman",
+      description: "A timeless tale of honor and sacrifice.",
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuDdKrpME_oUJAcdqtjz-V9D6z1nMwq7zKumdtV4s0khPXhXmh7NhGMvhITJ2z0ttRmaN9Gc_icZsBXUcd5_29uu1T6ytKs64O4ZzkI6jqHXcx18OYEiCK6U0cJXsNggF3rgBJlREdmfRALAtMcJsdjm4R27egea6a0C7Uu2cZY-WjGJaz2vWHpj52H0ky3CQLq3sNsjqZzhIYgdwzB6TZ9hPNbTCSENU3a6YEUa_I16cQEKaXG3_1uccI70cM0FHEHjn8lPnA6d-6E",
+      link: "#",
+      date: "Feb 5, 2025",
+      venue: "Main Hall",
+      category: "Tragedy"
+    },
+    {
+      title: "Moremi the Musical",
+      description: "A story of courage and sacrifice.",
+      imageUrl: "https://lh3.googleusercontent.com/aida-public/AB6AXuA4CAkGxpRXugACeGr2YR4LHYeSjrlvrWN8RWnY6GOcMWKbUWbLxPipV1OvIrZu3p4mtm61JRYt1uxgdMmzoP4oM-nrBGzUd62vTA8ZTIG5BMiRY-JU777PmUoNbTLhFUk2l_5F8_HvkbNdurOcGg2Gtky5r20mPxzmo54XvdlAy8IpKRs701DVf8FEVRWRvga8IrkaTUUh1iAnnJf-uT9nvNDABNxNh2GWFOiSC7v3fIQjNOxOIwMArmmqd6OELjk0nFbhfs4v240",
+      link: "#",
+      date: "Mar 12, 2025",
+      venue: "Amphitheater",
+      category: "Musical"
+    },
+  ];
 
   const NavLinks = () => (
     <>
@@ -75,27 +77,6 @@ export default function Home() {
     </>
   );
 
-  // Loading state
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
-      </div>
-    );
-  }
-
-  // Error state
-  if (error) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-red-500 text-center">
-          <p className="text-xl mb-4">Error loading events</p>
-          <p className="text-gray-400">{error}</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <>
       <Head>
@@ -106,7 +87,7 @@ export default function Home() {
       </Head>
 
       <div className={`min-h-screen ${DARK_BG} text-white font-sans`}>
-        {/* Navigation - Your existing navigation code remains the same */}
+        {/* Navigation */}
         <header className={`fixed w-full z-50 transition-all duration-300 ${
           isScrolled ? 'bg-gray-900/95 backdrop-blur-md shadow-lg' : 'bg-transparent'
         }`}>
@@ -183,8 +164,7 @@ export default function Home() {
             )}
           </div>
         </header>
-
-        {/* Hero Section - Your existing hero section remains the same */}
+{/* Hero Section */}
 <section className="relative pt-16 pb-20 sm:pt-20 sm:pb-32 overflow-hidden">
   <div
     className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -230,76 +210,78 @@ export default function Home() {
   </div>
 </section>
 
-        {/* Upcoming Events Section - Now dynamically loaded */}
-        <section className="py-8 sm:py-16 lg:py-20 bg-gray-800/50">
-          <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
-            <div className="text-center mb-8 sm:mb-16">
-              <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black mb-3 sm:mb-4 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
-                <span className="material-icons text-amber-500 text-xl sm:text-2xl md:text-3xl">event_available</span>
-                Featured <span className={ACCENT_COLOR}>Events</span>
-              </h2>
-              <p className="text-gray-400 text-xs sm:text-sm lg:text-base max-w-2xl mx-auto px-2 sm:px-4">
-                Discover unforgettable performances that celebrate the richness of Nigerian arts and culture
-              </p>
-            </div>
+{/* Upcoming Events */}
+<section className="py-8 sm:py-16 lg:py-20 bg-gray-800/50">
+  <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+    <div className="text-center mb-8 sm:mb-16">
+      {/* Fixed: Better responsive heading */}
+      <h2 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl xl:text-5xl font-black mb-3 sm:mb-4 flex items-center justify-center gap-2 sm:gap-3 flex-wrap">
+        <span className="material-icons text-amber-500 text-xl sm:text-2xl md:text-3xl">event_available</span>
+        Featured <span className={ACCENT_COLOR}>Events</span>
+      </h2>
+      <p className="text-gray-400 text-xs sm:text-sm lg:text-base max-w-2xl mx-auto px-2 sm:px-4">
+        Discover unforgettable performances that celebrate the richness of Nigerian arts and culture
+      </p>
+    </div>
 
-            {/* Events Grid - Now using data from database */}
-            <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
-              {events.map((event) => (
-                <div 
-                  key={event.id}
-                  className="group bg-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden hover:transform hover:scale-105 transition-all duration-500 shadow-lg hover:shadow-2xl"
-                >
-                  <div className="relative overflow-hidden">
-                    <img 
-                      src={event.image_url} 
-                      alt={event.title}
-                      className="w-full h-40 xs:h-48 sm:h-56 md:h-64 lg:h-72 object-cover group-hover:scale-110 transition-transform duration-700"
-                    />
-                    <div className="absolute top-2 right-2 bg-amber-500 text-gray-900 font-bold px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                      <span className="material-icons text-xs">schedule</span>
-                      {event.date}
-                    </div>
-                    <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
-                      <span className="material-icons text-xs">category</span>
-                      {event.category}
-                    </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                  </div>
-                  
-                  <div className="p-3 sm:p-4 lg:p-6">
-                    <div className="flex items-start justify-between mb-2 sm:mb-3">
-                      <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white group-hover:text-amber-400 transition-colors line-clamp-2">
-                        {event.title}
-                      </h3>
-                    </div>
-                    
-                    <p className="text-gray-400 mb-3 sm:mb-4 line-clamp-2 text-xs sm:text-sm lg:text-base">
-                      {event.description}
-                    </p>
-                    
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-3 sm:mb-4">
-                      <span className="flex items-center gap-1">
-                        <span className="material-icons text-xs">location_on</span>
-                        {event.venue}
-                      </span>
-                      <span className="flex items-center gap-1 text-amber-400">
-                        <span className="material-icons text-xs">star</span>
-                        4.8
-                      </span>
-                    </div>
-                    <a href={`/details/${event.id}`}>
-                      <button className="w-full bg-gray-700 hover:bg-amber-500 hover:text-gray-900 text-white font-semibold py-2 sm:py-3 rounded-lg transition-all duration-300 group-hover:transform group-hover:scale-105 flex items-center justify-center gap-2 text-xs sm:text-sm lg:text-base">
-                        <span className="material-icons text-base">confirmation_number</span>
-                        Get Tickets
-                      </button>
-                    </a>
-                  </div>
-                </div>  
-              ))}
+    {/* Fixed: Better grid spacing and card sizing */}
+    <div className="grid grid-cols-1 xs:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6 lg:gap-8">
+      {events.map((event, index) => (
+        <div 
+          key={index}
+          className="group bg-gray-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden hover:transform hover:scale-105 transition-all duration-500 shadow-lg hover:shadow-2xl"
+        >
+          <div className="relative overflow-hidden">
+            <img 
+              src={event.imageUrl} 
+              alt={event.title}
+              className="w-full h-40 xs:h-48 sm:h-56 md:h-64 lg:h-72 object-cover group-hover:scale-110 transition-transform duration-700"
+            />
+            <div className="absolute top-2 right-2 bg-amber-500 text-gray-900 font-bold px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <span className="material-icons text-xs">schedule</span>
+              {event.date}
             </div>
+            <div className="absolute top-2 left-2 bg-gray-900/80 text-white px-2 py-1 rounded-full text-xs flex items-center gap-1">
+              <span className="material-icons text-xs">category</span>
+              {event.category}
+            </div>
+            <div className="absolute inset-0 bg-gradient-to-t from-gray-900 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
           </div>
-        </section>
+          
+          <div className="p-3 sm:p-4 lg:p-6">
+            <div className="flex items-start justify-between mb-2 sm:mb-3">
+              <h3 className="text-base sm:text-lg lg:text-xl font-bold text-white group-hover:text-amber-400 transition-colors line-clamp-2">
+                {event.title}
+              </h3>
+            </div>
+            
+            <p className="text-gray-400 mb-3 sm:mb-4 line-clamp-2 text-xs sm:text-sm lg:text-base">
+              {event.description}
+            </p>
+            
+            <div className="flex items-center justify-between text-xs text-gray-500 mb-3 sm:mb-4">
+              <span className="flex items-center gap-1">
+                <span className="material-icons text-xs">location_on</span>
+                {event.venue}
+              </span>
+              <span className="flex items-center gap-1 text-amber-400">
+                <span className="material-icons text-xs">star</span>
+                4.8
+              </span>
+            </div>
+            <a href="/Details">
+            <button className="w-full bg-gray-700 hover:bg-amber-500 hover:text-gray-900 text-white font-semibold py-2 sm:py-3 rounded-lg transition-all duration-300 group-hover:transform group-hover:scale-105 flex items-center justify-center gap-2 text-xs sm:text-sm lg:text-base">
+              <span className="material-icons text-base">confirmation_number</span>
+              Get Tickets
+            </button>
+            </a>
+          </div>
+        </div>  
+      ))}
+    </div>
+  </div>
+</section>
+
 {/* About Section */}
 <section className="py-8 sm:py-16 lg:py-20">
   <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
@@ -509,9 +491,8 @@ export default function Home() {
       </div>
     </div>
   </div>
-</footer> 
-
-   </div>
+</footer>   
+      </div>
     </>
   );
 }
