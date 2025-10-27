@@ -253,17 +253,17 @@ export default function DetailsPage() {
               <h3 className="text-xl font-bold mb-2">National Theater</h3>
               <p className="text-gray-400">Your premier destination for world-class performances</p>
             </div>
-            <div className="flex space-x-4">
-              <a href="#" className="text-gray-400 hover:text-amber-500 transition-colors">
-                <span className="material-icons">facebook</span>
-              </a>
-              <a href="#" className="text-gray-400 hover:text-amber-500 transition-colors">
-                <span className="material-icons">twitter</span>
-              </a>
-              <a href="#" className="text-gray-400 hover:text-amber-500 transition-colors">
-                <span className="material-icons">instagram</span>
-              </a>
-            </div>
+<div className="flex gap-2 sm:gap-3 lg:gap-4 mt-3 sm:mt-4">
+  {['facebook', 'instagram', 'twitter', 'youtube'].map((platform) => (
+    <a
+      key={platform}
+      href="#"
+      className="text-gray-400 hover:text-amber-400 transition-colors"
+    >
+      <i className={`fab fa-${platform} text-base sm:text-lg lg:text-xl`}></i>
+    </a>
+  ))}
+</div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
             <p>© {new Date().getFullYear()} National Theater. All rights reserved.</p>

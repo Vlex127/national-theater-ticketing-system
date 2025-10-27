@@ -492,7 +492,7 @@ export default function Home() {
     <div className="border-t border-gray-800 mt-4 sm:mt-6 lg:mt-8 pt-4 sm:pt-6 lg:pt-8 flex flex-col sm:flex-row justify-between items-center">
       <p className="text-gray-500 text-xs flex items-center gap-1 sm:gap-2 mb-3 sm:mb-0 text-center sm:text-left">
         <span className="material-icons text-xs">copyright</span>
-        © {new Date().getFullYear()} National Theater, Nigeria. All rights reserved.
+         {new Date().getFullYear()} National Theater, Nigeria. All rights reserved.
       </p>
       <div className="flex items-center gap-3 sm:gap-4 lg:gap-6 flex-wrap justify-center">
         {[
