@@ -44,45 +44,51 @@ export default function DetailsPage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-// In your DetailsPage component, change the fetch call:
-useEffect(() => {
-  async function fetchEvent() {
-    try {
-      setLoading(true);
-      console.log('Fetching event with ID:', id);
-      
-      if (!id) {
-        throw new Error('Event ID is missing');
-      }
+  useEffect(() => {
+    let isMounted = true;
 
-      // Use search params instead of dynamic route
-      const response = await fetch(`/api/events?id=${id}`);
-      console.log('API Response status:', response.status);
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Failed to parse error response' }));
-        throw new Error(errorData.error || `Failed to fetch event (${response.status})`);
-      }
-      
-      const data = await response.json();
-      console.log('Event data received:', data);
-      
-      setEvent(data);
-    } catch (err) {
-      console.error('Error in fetchEvent:', err);
-      setError(err instanceof Error ? err.message : 'Failed to fetch event');
-    } finally {
-      setLoading(false);
-    }
-  }
+    const fetchEvent = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log('Fetching event with ID:', id);
+        
+        if (!id) {
+          throw new Error('Event ID is missing');
+        }
 
-  if (id) {
+        const response = await fetch(`/api/events/${id}`);
+        console.log('API Response status:', response.status);
+        
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || `Failed to fetch event (${response.status})`);
+        }
+        
+        const data = await response.json();
+        console.log('Event data received:', data);
+        
+        if (isMounted) {
+          setEvent(data);
+        }
+      } catch (err) {
+        console.error('Error in fetchEvent:', err);
+        if (isMounted) {
+          setError(err instanceof Error ? err.message : 'Failed to fetch event');
+        }
+      } finally {
+        if (isMounted) {
+          setLoading(false);
+        }
+      }
+    };
+
     fetchEvent();
-  } else {
-    setError('Event ID is missing');
-    setLoading(false);
-  }
-}, [id]);
+
+    return () => {
+      isMounted = false;
+    };
+  }, [id]);
 
   // Loading component
   const Spinner = () => (
@@ -90,14 +96,6 @@ useEffect(() => {
       <Spinner />
     </div>
   );
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <Spinner />
-      </div>
-    );
-  }
 
   if (loading) {
     return (
