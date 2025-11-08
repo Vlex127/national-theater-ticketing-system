@@ -1,26 +1,30 @@
 // src/middleware.ts
-import { auth } from "@/auth"
-import { NextResponse } from "next/server"
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
 
-export default auth((req) => {
-  const isLoggedIn = !!req.auth
-  const isAuthPage = req.nextUrl.pathname.startsWith('/login')
-  const isAdminPath = req.nextUrl.pathname.startsWith('/admin')
+export function middleware(request: NextRequest) {
+  // Check if user has a session token
+  const token = request.cookies.get('authjs.session-token') || 
+                request.cookies.get('__Secure-authjs.session-token')
+  
+  const isLoggedIn = !!token
+  const isAuthPage = request.nextUrl.pathname.startsWith('/login')
+  const isAdminPath = request.nextUrl.pathname.startsWith('/admin')
 
   // Redirect logged-in users away from auth pages
   if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL('/admin/dashboard', req.url))
+    return NextResponse.redirect(new URL('/admin/dashboard', request.url))
   }
 
   // Redirect non-authenticated users trying to access admin
   if (isAdminPath && !isLoggedIn) {
     return NextResponse.redirect(
-      new URL(`/login?callbackUrl=${req.nextUrl.pathname}`, req.url)
+      new URL(`/login?callbackUrl=${request.nextUrl.pathname}`, request.url)
     )
   }
 
   return NextResponse.next()
-})
+}
 
 export const config = {
   matcher: [
