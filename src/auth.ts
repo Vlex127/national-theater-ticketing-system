@@ -7,12 +7,17 @@ import { prisma } from "@/app/lib/Prisma"
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
-  session: { strategy: "jwt" },
+  session: { 
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60, // 30 days
+  },
   trustHost: true, // ✅ Required for Vercel and custom domains
-  secret: process.env.NEXTAUTH_SECRET, // ✅ Must be set in .env
+  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, // ✅ Fallback for backward compatibility
+  debug: process.env.NODE_ENV === "development", // Enable debug logs in development
 
   pages: {
     signIn: "/login",
+    error: "/login", // Redirect errors to login page
   },
 
   providers: [

@@ -3,10 +3,15 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export function middleware(request: NextRequest) {
-  // Check if user has a session token
+  // Skip middleware for auth API routes
+  if (request.nextUrl.pathname.startsWith('/api/auth')) {
+    return NextResponse.next()
+  }
+
+  // Check if user has a session token (handles both HTTP and HTTPS)
   const token =
-    request.cookies.get('authjs.session-token') ||
-    request.cookies.get('__Secure-authjs.session-token')
+    request.cookies.get('authjs.session-token')?.value ||
+    request.cookies.get('__Secure-authjs.session-token')?.value
 
   const isLoggedIn = !!token
   const isAuthPage = request.nextUrl.pathname.startsWith('/login')
@@ -27,10 +32,17 @@ export function middleware(request: NextRequest) {
   return NextResponse.next()
 }
 
-// ✅ Updated matcher combined properly
+// Only run middleware on specific routes, exclude API and static files
 export const config = {
   matcher: [
-    // Exclude: api, static, image, favicon, AND auth paths
-    '/((?!api|_next/static|_next/image|favicon.ico|auth).*)',
+    /*
+     * Match all request paths except:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, etc)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
