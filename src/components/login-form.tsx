@@ -16,10 +16,8 @@ export function LoginForm() {
   const searchParams = useSearchParams()
   const { status } = useSession()
   
-  // Get the callback URL from the query parameters or default to /admin/dashboard
   const callbackUrl = searchParams?.get("callbackUrl") || "/admin/dashboard"
 
-  // Redirect if already authenticated
   useEffect(() => {
     if (status === "authenticated") {
       router.push(callbackUrl)
@@ -29,7 +27,6 @@ export function LoginForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
-    // Basic validation
     if (!email.trim() || !password) {
       setError("Please enter both email and password")
       return
@@ -39,7 +36,8 @@ export function LoginForm() {
     setError(null)
 
     try {
-      // Try to sign in
+      console.log("Attempting sign in...") // Debug
+      
       const result = await signIn("credentials", {
         redirect: false,
         email: email.trim(),
@@ -47,15 +45,19 @@ export function LoginForm() {
         callbackUrl
       })
 
+      console.log("Sign in result:", result) // Debug - check this in browser console
+
       if (result?.error) {
-        // Handle specific error messages if needed
-        setError("Invalid email or password. Please try again.")
-      } else if (result?.url) {
-        // Use window.location.href to ensure a full page refresh and proper session handling
-        window.location.href = result.url
+        console.error("Sign in error:", result.error) // Debug
+        setError(`Login failed: ${result.error}`)
+      } else if (result?.ok) {
+        console.log("Sign in successful, redirecting...") // Debug
+        window.location.href = callbackUrl
+      } else {
+        setError("Login failed. Please try again.")
       }
     } catch (error) {
-      console.error("Login error:", error)
+      console.error("Login exception:", error) // Debug
       setError("An unexpected error occurred. Please try again.")
     } finally {
       setIsLoading(false)
@@ -73,7 +75,7 @@ export function LoginForm() {
         </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
             {error}
           </div>
         )}
