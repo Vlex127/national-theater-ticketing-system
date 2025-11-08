@@ -23,14 +23,12 @@ export default function LoginPage() {
       </div>
       <div className="bg-gray-800 relative hidden lg:flex">
         <div className="relative w-full h-full overflow-hidden">
-          <Image
-            src="/national theatre.jpg"
-            alt="Theater background"
-            fill
-            priority
-            sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover dark:brightness-[0.2] dark:grayscale"
-            quality={80}
+          <Image 
+            src="/national theatre.jpg" 
+            quality={75} // Changed from 80
+            alt="National Theatre"
+            width={500}
+            height={300}
           />
         </div>
       </div>
