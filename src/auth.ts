@@ -8,9 +8,13 @@ import { prisma } from "@/app/lib/Prisma"
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { strategy: "jwt" },
+  trustHost: true, // ✅ Required for Vercel and custom domains
+  secret: process.env.NEXTAUTH_SECRET, // ✅ Must be set in .env
+
   pages: {
     signIn: "/login",
   },
+
   providers: [
     Credentials({
       credentials: {
@@ -47,6 +51,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+
   callbacks: {
     async jwt({ token, user }) {
       if (user) {
@@ -54,6 +59,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       }
       return token
     },
+
     async session({ session, token }) {
       if (token && session.user) {
         session.user.id = token.id as string
