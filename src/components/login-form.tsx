@@ -59,14 +59,9 @@ export function LoginForm({
             {/* <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
               <path d="M12.48 ..."/>
             </svg> */}
-            Login with Google
+            Login
           </Button>
-          <FieldDescription className="text-center text-gray-400 mt-2">
-            Don't have an account?{" "}
-            <a href="/signup" className="underline underline-offset-4 text-amber-500">
-              Sign up
-            </a>
-          </FieldDescription>
+
         </Field>
       </FieldGroup>
  

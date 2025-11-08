@@ -91,7 +91,7 @@ export default function Home() {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-red-500 text-center">
-          <p className="text-xl mb-4">Error loading events</p>
+          <p className="text-xl mb-4">Error loading events please refresh your network</p>
           <p className="text-gray-400">{error}</p>
         </div>
       </div>
