@@ -5,6 +5,13 @@ import { PrismaAdapter } from "@auth/prisma-adapter"
 import { compare } from "bcryptjs"
 import { prisma } from "@/app/lib/Prisma"
 
+// Validate AUTH_SECRET on startup
+const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
+if (!authSecret) {
+  console.error('❌ FATAL: AUTH_SECRET or NEXTAUTH_SECRET must be set!');
+  throw new Error('AUTH_SECRET is required but not found in environment variables');
+}
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   adapter: PrismaAdapter(prisma),
   session: { 
@@ -12,8 +19,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
   trustHost: true, // ✅ Required for Vercel and custom domains
-  secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET, // ✅ Fallback for backward compatibility
-  debug: process.env.NODE_ENV === "development", // Enable debug logs in development
+  secret: authSecret, // ✅ Validated secret
+  debug: true, // ✅ ENABLED: Always show detailed auth logs for debugging
 
   pages: {
     signIn: "/login",
@@ -27,31 +34,42 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: async (credentials) => {
-        if (!credentials?.email || !credentials?.password) {
-          throw new Error("Missing credentials")
-        }
+        try {
+          console.log('🔐 Authorization attempt for:', credentials?.email);
+          
+          if (!credentials?.email || !credentials?.password) {
+            console.error('❌ Missing credentials');
+            throw new Error("Missing credentials")
+          }
 
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email as string },
-        })
+          const user = await prisma.user.findUnique({
+            where: { email: credentials.email as string },
+          })
 
-        if (!user || !user.password) {
-          throw new Error("Invalid credentials")
-        }
+          if (!user || !user.password) {
+            console.error('❌ User not found or no password:', credentials.email);
+            throw new Error("Invalid credentials")
+          }
 
-        const isValid = await compare(
-          credentials.password as string,
-          user.password
-        )
+          const isValid = await compare(
+            credentials.password as string,
+            user.password
+          )
 
-        if (!isValid) {
-          throw new Error("Invalid credentials")
-        }
+          if (!isValid) {
+            console.error('❌ Invalid password for:', credentials.email);
+            throw new Error("Invalid credentials")
+          }
 
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
+          console.log('✅ Authorization successful for:', credentials.email);
+          return {
+            id: user.id,
+            email: user.email,
+            name: user.name,
+          }
+        } catch (error) {
+          console.error('❌ Authorization error:', error);
+          throw error;
         }
       },
     }),

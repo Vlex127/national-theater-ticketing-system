@@ -36,7 +36,7 @@ export function LoginForm() {
     setError(null)
 
     try {
-      console.log("Attempting sign in...") // Debug
+      console.log("🔐 Attempting sign in for:", email.trim())
       
       const result = await signIn("credentials", {
         redirect: false,
@@ -45,20 +45,34 @@ export function LoginForm() {
         callbackUrl
       })
 
-      console.log("Sign in result:", result) // Debug - check this in browser console
+      console.log("📝 Sign in result:", JSON.stringify(result, null, 2))
 
       if (result?.error) {
-        console.error("Sign in error:", result.error) // Debug
-        setError(`Login failed: ${result.error}`)
+        console.error("❌ Sign in error:", result.error)
+        
+        // Show detailed error messages
+        let errorMessage = result.error
+        
+        if (result.error === "Configuration") {
+          errorMessage = "Server configuration error. Please check:\n" +
+                        "1. AUTH_SECRET is set in environment variables\n" +
+                        "2. Database connection is working\n" +
+                        "3. Check server logs for details"
+        } else if (result.error === "CredentialsSignin") {
+          errorMessage = "Invalid email or password"
+        }
+        
+        setError(errorMessage)
       } else if (result?.ok) {
-        console.log("Sign in successful, redirecting...") // Debug
+        console.log("✅ Sign in successful, redirecting to:", callbackUrl)
         window.location.href = callbackUrl
       } else {
-        setError("Login failed. Please try again.")
+        console.error("⚠️ Unexpected result:", result)
+        setError("Login failed. Please check the console for details.")
       }
     } catch (error) {
-      console.error("Login exception:", error) // Debug
-      setError("An unexpected error occurred. Please try again.")
+      console.error("💥 Login exception:", error)
+      setError(`An unexpected error occurred: ${error instanceof Error ? error.message : 'Unknown error'}`)
     } finally {
       setIsLoading(false)
     }
@@ -75,7 +89,7 @@ export function LoginForm() {
         </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm">
+          <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded text-sm whitespace-pre-line">
             {error}
           </div>
         )}
