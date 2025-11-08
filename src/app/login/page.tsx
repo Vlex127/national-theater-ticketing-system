@@ -1,7 +1,16 @@
 import { GalleryVerticalEnd } from "lucide-react"
 import Image from "next/image"
-
+import { Suspense } from "react" // Add this import
 import { LoginForm } from "@/components/login-form"
+
+// Add a loading fallback component
+function LoginFormSkeleton() {
+  return (
+    <div className="flex items-center justify-center py-12">
+      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-amber-500"></div>
+    </div>
+  )
+}
 
 export default function LoginPage() {
   return (
@@ -17,7 +26,10 @@ export default function LoginPage() {
         </div>
         <div className="flex flex-1 items-center justify-center">
           <div className="w-full max-w-xs">
-            <LoginForm />
+            {/* Wrap LoginForm in Suspense */}
+            <Suspense fallback={<LoginFormSkeleton />}>
+              <LoginForm />
+            </Suspense>
           </div>
         </div>
       </div>
@@ -25,10 +37,10 @@ export default function LoginPage() {
         <div className="relative w-full h-full overflow-hidden">
           <Image 
             src="/national theatre.jpg" 
-            quality={75} // Changed from 80
+            quality={75}
             alt="National Theatre"
-            width={500}
-            height={300}
+            fill // Use fill instead of width/height for better responsive behavior
+            className="object-cover"
           />
         </div>
       </div>
