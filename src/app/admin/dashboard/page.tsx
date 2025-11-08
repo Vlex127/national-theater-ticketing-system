@@ -32,20 +32,29 @@ export default function AdminDashboard() {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      // TODO: Replace with actual API call
-      // const response = await fetch('/api/admin/stats');
-      // const data = await response.json();
+      const response = await fetch('/api/admin/stats');
       
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!response.ok) {
+        throw new Error('Failed to fetch stats');
+      }
       
-      setStats({
-        totalUsers: 1245,
-        totalEvents: 28,
-        totalBookings: 845,
-        totalRevenue: 12560,
-      });
+      const data = await response.json();
+      
+      setStats(prev => ({
+        ...prev,
+        totalEvents: data.totalEvents,
+        // Keep other stats as they are for now
+        // You can update other stats when their respective APIs are ready
+      }));
     } catch (error) {
       console.error('Error fetching stats:', error);
+      // Fallback to default values in case of error
+      setStats({
+        totalUsers: 0,
+        totalEvents: 0,
+        totalBookings: 0,
+        totalRevenue: 0,
+      });
     } finally {
       setLoading(false);
     }
@@ -99,11 +108,12 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-4"><a href="/admin/events">
           <Button variant="outline" className="flex items-center gap-2">
             <Calendar className="h-4 w-4" />
             Add New Event
           </Button>
+          </a>
           <Button variant="outline" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Manage Users
