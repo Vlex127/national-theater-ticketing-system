@@ -45,30 +45,35 @@ export function LoginForm() {
         callbackUrl
       })
 
-      console.log("📝 Sign in result:", JSON.stringify(result, null, 2))
+      console.log("📝 Sign in result:", result ? {
+        ...result,
+        // Don't log the full error object as it might contain sensitive data
+        error: result.error ? 'Error present (check logs)' : undefined,
+      } : 'No result')
 
       if (result?.error) {
-        console.error("❌ Sign in error:", result.error)
+        console.error("❌ Sign in error:", result.error);
         
-        // Show detailed error messages
-        let errorMessage = result.error
+        let errorMessage = 'Authentication failed. Please try again.';
         
-        if (result.error === "Configuration") {
-          errorMessage = "Server configuration error. Please check:\n" +
-                        "1. AUTH_SECRET is set in environment variables\n" +
-                        "2. Database connection is working\n" +
-                        "3. Check server logs for details"
-        } else if (result.error === "CredentialsSignin") {
-          errorMessage = "Invalid email or password"
+        if (result.error.includes('CredentialsSignin') || 
+            result.error.includes('Invalid email or password')) {
+          errorMessage = 'Invalid email or password. Please try again.';
+        } else if (result.error.includes('ECONNREFUSED') || 
+                  result.error.includes('Connection error')) {
+          errorMessage = 'Cannot connect to the database. Please try again later.';
+        } else if (result.error.includes('no password set')) {
+          errorMessage = 'This account has no password set. Please use a different sign-in method.';
         }
         
-        setError(errorMessage)
-      } else if (result?.ok) {
-        console.log("✅ Sign in successful, redirecting to:", callbackUrl)
-        window.location.href = callbackUrl
+        setError(errorMessage);
+      } else if (result?.url) {
+        console.log("✅ Sign in successful, redirecting to:", result.url);
+        window.location.href = result.url;
+        return; // Prevent further execution after redirect
       } else {
-        console.error("⚠️ Unexpected result:", result)
-        setError("Login failed. Please check the console for details.")
+        console.error("⚠️ Unexpected result:", result);
+        setError("An unexpected error occurred. Please try again.");
       }
     } catch (error) {
       console.error("💥 Login exception:", error)

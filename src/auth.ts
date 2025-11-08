@@ -2,7 +2,9 @@
 import NextAuth from "next-auth"
 import Credentials from "next-auth/providers/credentials"
 import { compare } from "bcryptjs"
-import { prisma } from "@/app/lib/Prisma"
+import { db } from "@/lib/db"
+import { eq } from "drizzle-orm"
+import { users } from "@/lib/db/schema"
 
 // Validate AUTH_SECRET on startup
 const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET;
@@ -19,23 +21,32 @@ console.log('🔐 Auth Secret Status:', {
 });
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
-  // NOTE: Using JWT strategy without adapter for Credentials provider
-  // adapter: PrismaAdapter(prisma), // Removed - conflicts with JWT + Credentials
+  // Using JWT strategy for session management
   session: { 
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
-  trustHost: true, // ✅ Required for Vercel and custom domains
-  secret: authSecret, // ✅ Validated secret
-  debug: true, // ✅ ENABLED: Always show detailed auth logs for debugging
-
+  trustHost: true, // Required for Vercel and custom domains
+  secret: authSecret, // Validated secret
+  debug: true, // Enable detailed auth logs for debugging
+  logger: {
+    error: (error: Error) => {
+      console.error('Auth error:', error.message, error);
+    },
+    warn: (message: string) => {
+      console.warn('Auth warning:', message);
+    },
+    debug: (message: string, metadata?: any) => {
+      console.debug('Auth debug:', message, metadata || '');
+    }
+  },
   pages: {
     signIn: "/login",
     error: "/login", // Redirect errors to login page
   },
-
   providers: [
     Credentials({
+      name: 'Credentials',
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
@@ -49,44 +60,41 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             return null;
           }
 
-          console.log('📊 Attempting database query...');
-          const user = await prisma.user.findUnique({
-            where: { email: credentials.email as string },
-          }).catch((dbError: unknown) => {
-            console.error('❌ Database connection error:', dbError);
-            throw new Error("Database connection failed");
-          });
+          console.log('📊 Attempting to find user in database...');
+          const [user] = await db
+            .select()
+            .from(users)
+            .where(eq(users.email, credentials.email as string))
+            .limit(1);
+
+          console.log('🔍 User query result:', user ? 'User found' : 'No user found');
 
           if (!user) {
-            console.error('❌ User not found:', credentials.email);
+            console.error(`❌ User not found with email: ${credentials.email}`);
             return null;
           }
 
           if (!user.password) {
-            console.error('❌ User has no password:', credentials.email);
+            console.error(`❌ User ${credentials.email} has no password set`);
             return null;
           }
 
-          console.log('🔑 Comparing password...');
-          const isValid = await compare(
-            credentials.password as string,
-            user.password
-          );
+          console.log('🔑 Comparing password hash...');
+          const isValid = await compare(credentials.password as string, user.password);
 
           if (!isValid) {
-            console.error('❌ Invalid password for:', credentials.email);
+            console.error(`❌ Invalid password for user: ${credentials.email}`);
             return null;
           }
 
-          console.log('✅ Authorization successful for:', credentials.email);
+          console.log(`✅ Authentication successful for user: ${user.id}`);
           return {
             id: user.id,
-            email: user.email,
-            name: user.name,
-          }
+            email: user.email || '',
+            name: user.name || (user.email ? user.email.split('@')[0] : 'User'),
+          };
         } catch (error) {
-          console.error('❌ Authorization error:', error);
-          // Return null instead of throwing to avoid "Configuration" error
+          console.error('❌ Authentication error:', error);
           return null;
         }
       },
@@ -94,18 +102,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
 
   callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id
+    async jwt({ token, user, account }) {
+      // Initial sign in
+      if (account && user) {
+        return {
+          ...token,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+        };
       }
-      return token
+      return token;
     },
-
     async session({ session, token }) {
-      if (token && session.user) {
-        session.user.id = token.id as string
+      if (session.user) {
+        session.user.id = token.id as string;
+        session.user.name = token.name as string;
+        session.user.email = token.email as string;
       }
-      return session
+      return session;
     },
   },
 })
