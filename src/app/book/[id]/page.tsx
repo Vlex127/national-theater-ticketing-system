@@ -84,20 +84,11 @@ const fetchEvent = async (id: string): Promise<EventDetails> => {
   };
 };
 
-// Fetch seat data from API
+// Generate seat data locally
 const fetchSeats = async (eventId: string): Promise<Section[]> => {
-  try {
-    const response = await fetch(`/api/events/${eventId}/seats`);
-    if (!response.ok) {
-      throw new Error('Failed to fetch seat data');
-    }
-    const data = await response.json();
-    return data.sections;
-  } catch (error) {
-    console.error('Error fetching seat data, using fallback:', error);
-    // Fallback to default seat generation if API fails
-    return generateDefaultSeats();
-  }
+  // For now, we'll always use the default seat generation
+  // since we don't have a database for seats yet
+  return generateDefaultSeats();
 };
 
 // Generate default seats if API fails
@@ -311,43 +302,43 @@ export default function SeatSelection() {
     );
   }
 
+  // Color mapping for each section type
+  const sectionColors = {
+    'VIP': {
+      border: 'border-amber-500',
+      hover: 'hover:bg-amber-50',
+      selected: 'bg-amber-600 border-amber-600 text-white'
+    },
+    'Standard': {
+      border: 'border-blue-500',
+      hover: 'hover:bg-blue-50',
+      selected: 'bg-blue-600 border-blue-600 text-white'
+    },
+    'Balcony': {
+      border: 'border-green-500',
+      hover: 'hover:bg-green-50',
+      selected: 'bg-green-600 border-green-600 text-white'
+    }
+  };
+
   // Get seat status class
   const getSeatStatusClass = (seat: Seat) => {
-    // Handle selected state first
-    if (seat.status === 'selected') {
-      const section = sections.find(s => s.name.toLowerCase() === seat.category.toLowerCase());
-      const color = section?.color.split('-')[1] || 'amber';
-      return `bg-${color}-500 border-${color}-600 text-white`;
-    }
+    const baseClass = 'border-2';
+    const colors = sectionColors[seat.category] || sectionColors['Standard'];
     
-    // Handle unavailable and reserved states
+    if (seat.status === 'selected') return colors.selected;
     if (seat.status === 'unavailable') return 'bg-gray-200 border-gray-300 cursor-not-allowed';
     if (seat.status === 'reserved') return 'bg-gray-100 border-gray-300 cursor-not-allowed';
     
-    // Available seat - color by section
-    const section = sections.find(s => s.name.toLowerCase() === seat.category.toLowerCase());
-    const baseClass = 'border-2';
-    
-    if (!section) return `${baseClass} bg-white border-gray-300 hover:border-amber-500`;
-    
-    // Get the base color from the section (e.g., 'bg-amber-500' -> 'amber')
-    const color = section.color.split('-')[1];
-    
-    // Force include the color classes to ensure they're not purged
-    const colorClasses = [
-      'border-amber-500', 'hover:bg-amber-50',
-      'border-blue-500', 'hover:bg-blue-50',
-      'border-green-500', 'hover:bg-green-50'
-    ];
-    
-    return `${baseClass} bg-white border-${color}-500 hover:bg-${color}-50`;
+    // Available seat
+    return `${baseClass} bg-white ${colors.border} ${colors.hover}`;
   };
   
   // Get section by ID
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 overflow-x-hidden">
       {/* Header */}
-      <header className="bg-white shadow-sm">
+      <div className="sticky top-0 z-10 bg-white shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <button 
@@ -358,10 +349,10 @@ export default function SeatSelection() {
               <span className="ml-1 font-medium">Back</span>
             </button>
             <h1 className="text-lg font-semibold text-gray-900">Select Seats</h1>
-            <div className="w-20"></div> {/* For balance */}
+            <div className="w-8"></div> {/* For balance */}
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Event Info */}
       <div className="bg-white border-b border-gray-200">
@@ -398,10 +389,10 @@ export default function SeatSelection() {
       </div>
 
       {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex flex-col lg:flex-row gap-6">
+      <main className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6 w-full">
+        <div className="flex flex-col lg:flex-row gap-4 sm:gap-6 w-full">
           {/* Seat Map */}
-          <div className="lg:flex-1">
+          <div className="w-full lg:flex-1 min-w-0">
             {/* Screen */}
             <div className="bg-gradient-to-r from-gray-200 to-gray-300 h-3 rounded-lg mb-8 mx-auto max-w-2xl relative overflow-hidden">
               <div className="absolute inset-0 flex items-center justify-center">
@@ -452,9 +443,9 @@ export default function SeatSelection() {
             {/* Seating Area */}
             <div 
               ref={containerRef}
-              className="relative w-full overflow-auto touch-none bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
+              className="relative w-full overflow-x-auto touch-none bg-white rounded-xl p-2 sm:p-4 border border-gray-200 shadow-sm"
             >
-              <div className="p-2">
+              <div className="min-w-max sm:min-w-0 w-full">
                 {visibleSections.map((section) => (
                   <div key={section.id} className="mb-8">
                     <h2 className="text-sm font-medium text-gray-700 mb-3 px-2">
@@ -464,7 +455,7 @@ export default function SeatSelection() {
                       {Object.entries(section.rows).map(([rowLetter, seats]) => (
                         <div key={rowLetter} className="flex items-center mb-2">
                           <span className="w-6 text-xs font-medium text-gray-500">{rowLetter}</span>
-                          <div className="flex space-x-1">
+                          <div className="flex flex-wrap gap-1 max-w-full overflow-hidden">
                             {seats.map((seat) => {
                               const isSelected = selectedSeats.some((s) => s.id === seat.id);
                               const isUnavailable = seat.status === 'unavailable' || seat.status === 'reserved';
@@ -474,7 +465,7 @@ export default function SeatSelection() {
                                   key={seat.id}
                                   onClick={() => toggleSeatSelection(seat)}
                                   disabled={isUnavailable}
-                                  className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center text-xs font-medium transition-all ${
+                                  className={`flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 rounded border flex items-center justify-center text-xs font-medium transition-all ${
                                     isSelected 
                                       ? 'scale-110 shadow-md' 
                                       : isUnavailable 
