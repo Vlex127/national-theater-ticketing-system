@@ -219,10 +219,12 @@ export default function Home() {
       
       {/* Fixed: Better button spacing and sizing */}
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-4 justify-center items-center px-2 sm:px-4">
-        <button className={`flex items-center gap-2 ${ACCENT_BG} hover:bg-amber-600 text-gray-900 font-bold text-sm xs:text-base sm:text-lg px-4 sm:px-8 py-2 sm:py-4 rounded-full transition-all duration-300 hover:scale-105 shadow-2xl w-full xs:w-auto max-w-xs sm:max-w-none justify-center`}>
-          <span>Book Your Experience</span>
-          <span className="material-icons text-sm sm:text-base">arrow_forward</span>
-        </button>
+          
+          <button className={`flex items-center gap-2 ${ACCENT_BG} hover:bg-amber-600 text-gray-900 font-bold text-sm xs:text-base sm:text-lg px-4 sm:px-8 py-2 sm:py-4 rounded-full transition-all duration-300 hover:scale-105 shadow-2xl w-full xs:w-auto max-w-xs sm:max-w-none justify-center`}>
+            <a href="/Events"> <span>Book Your Experience</span></a>
+            <span className="material-icons text-sm sm:text-base">arrow_forward</span>
+          </button>
+        
 
       </div>
     </div>

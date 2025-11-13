@@ -108,20 +108,23 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div className="mb-8">
         <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
-        <div className="flex flex-wrap gap-4"><a href="/admin/events">
-          <Button variant="outline" className="flex items-center gap-2">
-            <Calendar className="h-4 w-4" />
-            Add New Event
-          </Button>
+        <div className="flex flex-wrap gap-4">
+          <a href="/admin/events">
+            <Button variant="outline" className="flex items-center gap-2">
+              <Calendar className="h-4 w-4" />
+              Add New Event
+            </Button>
           </a>
           <Button variant="outline" className="flex items-center gap-2">
             <Users className="h-4 w-4" />
             Manage Users
           </Button>
-          <Button variant="outline" className="flex items-center gap-2">
-            <BarChart2 className="h-4 w-4" />
-            View Reports
-          </Button>
+          <a href='/admin/report'>
+            <Button variant="outline" className="flex items-center gap-2">
+              <BarChart2 className="h-4 w-4" />
+              View Reports
+            </Button>
+          </a>
         </div>
       </div>
 

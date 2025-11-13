@@ -2,116 +2,252 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { Loader2, ChevronLeft, ZoomIn, ZoomOut } from 'lucide-react';
+import Image from 'next/image';
+import { Loader2, ChevronLeft, ArrowRight, Calendar, Clock, MapPin, Ticket, X } from 'lucide-react';
 import { useMediaQuery } from 'react-responsive';
-import 'material-icons/iconfont/material-icons.css';
 
-const ACCENT_COLOR = "text-amber-500";
-const ACCENT_BG = "bg-amber-500";
-const DARK_BG = "bg-gray-900";
-const MID_BG = "bg-gray-800";
-const BORDER_COLOR = "border-gray-700";
+// Theme colors
+const THEME = {
+  primary: {
+    bg: 'bg-amber-600',
+    hover: 'hover:bg-amber-700',
+    text: 'text-amber-600',
+    border: 'border-amber-600',
+    light: 'bg-amber-50',
+  },
+  secondary: {
+    bg: 'bg-gray-800',
+    hover: 'hover:bg-gray-700',
+    text: 'text-gray-800',
+    border: 'border-gray-300',
+  },
+  dark: {
+    bg: 'bg-gray-900',
+    light: 'bg-gray-800',
+    lighter: 'bg-gray-700',
+  },
+  success: 'bg-green-100 text-green-800',
+  warning: 'bg-yellow-100 text-yellow-800',
+  error: 'bg-red-100 text-red-800',
+};
 
 type Seat = {
   id: string;
   row: string;
   number: number;
-  status: 'available' | 'selected' | 'unavailable';
+  status: 'available' | 'selected' | 'unavailable' | 'reserved';
   price: number;
-  category: 'VIP' | 'Regular' | 'Balcony';
+  category: 'VIP' | 'Standard' | 'Balcony';
 };
 
 type Section = {
+  id: string;
   name: string;
   price: number;
+  color: string;
   rows: {
     [key: string]: Seat[];
   };
 };
 
-// Add touch detection
-const isTouchDevice = () => {
-  return 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+type EventDetails = {
+  id: string;
+  title: string;
+  date: string;
+  time: string;
+  venue: string;
+  image: string;
+  description: string;
+  duration: string;
+  ageRestriction: string;
+};
+
+// Fetch event data from API
+const fetchEvent = async (id: string): Promise<EventDetails> => {
+  const response = await fetch(`/api/events/${id}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch event');
+  }
+  const event = await response.json();
+  
+  // Transform API response to match our EventDetails type
+  return {
+    id: event.id,
+    title: event.title,
+    date: event.date,
+    time: event.time || '19:00', // Default time if not provided
+    venue: event.venue,
+    image: event.image_url || '/images/placeholder-event.jpg',
+    description: event.description || '',
+    duration: '2h 30m', // This would ideally come from the API
+    ageRestriction: '12+', // This would ideally come from the API
+  };
+};
+
+// Fetch seat data from API
+const fetchSeats = async (eventId: string): Promise<Section[]> => {
+  try {
+    const response = await fetch(`/api/events/${eventId}/seats`);
+    if (!response.ok) {
+      throw new Error('Failed to fetch seat data');
+    }
+    const data = await response.json();
+    return data.sections;
+  } catch (error) {
+    console.error('Error fetching seat data, using fallback:', error);
+    // Fallback to default seat generation if API fails
+    return generateDefaultSeats();
+  }
+};
+
+// Generate default seats if API fails
+const generateDefaultSeats = (): Section[] => {
+  return [
+    {
+      id: 'vip',
+      name: 'VIP',
+      price: 25000,
+      color: 'bg-amber-500',
+      rows: generateRows('vip', 'VIP', 5, 20, 25000, 0.8),
+    },
+    {
+      id: 'standard',
+      name: 'Standard',
+      price: 15000,
+      color: 'bg-blue-500',
+      rows: generateRows('standard', 'Standard', 10, 30, 15000, 0.9),
+    },
+    {
+      id: 'balcony',
+      name: 'Balcony',
+      price: 8000,
+      color: 'bg-green-500',
+      rows: generateRows('balcony', 'Balcony', 8, 25, 8000, 0.7),
+    },
+  ];
+};
+
+// Helper function to generate rows of seats
+const generateRows = (
+  sectionId: string,
+  category: 'VIP' | 'Standard' | 'Balcony',
+  rowCount: number,
+  seatsPerRow: number,
+  price: number,
+  availableRatio: number
+): { [key: string]: Seat[] } => {
+  const rows: { [key: string]: Seat[] } = {};
+  
+  for (let i = 0; i < rowCount; i++) {
+    const rowLetter = String.fromCharCode(65 + i);
+    rows[rowLetter] = [];
+    
+    for (let j = 1; j <= seatsPerRow; j++) {
+      const seatId = `${sectionId}-${rowLetter}-${j}`;
+      const isAvailable = Math.random() < availableRatio;
+      
+      rows[rowLetter].push({
+        id: seatId,
+        row: rowLetter,
+        number: j,
+        status: isAvailable ? 'available' : 'unavailable',
+        price,
+        category,
+      });
+    }
+  }
+  
+  return rows;
 };
 
 export default function SeatSelection() {
   const { id } = useParams();
   const router = useRouter();
+  const [event, setEvent] = useState<EventDetails | null>(null);
   const [sections, setSections] = useState<Section[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
-  const [scale, setScale] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const [startX, setStartX] = useState(0);
-  const [startY, setStartY] = useState(0);
-  const [scrollLeft, setScrollLeft] = useState(0);
-  const [scrollTop, setScrollTop] = useState(0);
+  const [activeSection, setActiveSection] = useState<string>('');
+  const [showLegend, setShowLegend] = useState(true); // Added type annotation
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery({ maxWidth: 768 });
+  
+  // Filter sections to only show active section on mobile
+  const visibleSections = isMobile && activeSection 
+    ? sections.filter(section => section.id === activeSection)
+    : sections;
 
-  // Generate theater seats (mock data)
+  // Fetch event and seats data
   useEffect(() => {
-    // Simulate API call
-    const generateTheaterSeats = () => {
-      const newSections: Section[] = [
-        {
-          name: 'VIP',
-          price: 15000,
-          rows: {},
-        },
-        {
-          name: 'Regular',
-          price: 10000,
-          rows: {},
-        },
-        {
-          name: 'Balcony',
-          price: 5000,
-          rows: {},
-        },
-      ];
-
-      // Generate seats for each section
-      newSections.forEach((section, sectionIndex) => {
-        const rowCount = sectionIndex === 0 ? 5 : sectionIndex === 1 ? 10 : 8;
-        const seatsPerRow = sectionIndex === 0 ? 20 : sectionIndex === 1 ? 30 : 25;
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
         
-        for (let i = 0; i < rowCount; i++) {
-          const rowLetter = String.fromCharCode(65 + i);
-          section.rows[rowLetter] = [];
-          
-          for (let j = 1; j <= seatsPerRow; j++) {
-            section.rows[rowLetter].push({
-              id: `${section.name}-${rowLetter}-${j}`,
-              row: rowLetter,
-              number: j,
-              status: Math.random() > 0.2 ? 'available' : 'unavailable',
-              price: section.price,
-              category: section.name as 'VIP' | 'Regular' | 'Balcony',
-            });
+        // Fetch event details
+        const eventData = await fetchEvent(id as string);
+        setEvent(eventData);
+        
+        // Try to fetch seat data from API, fallback to default if fails
+        let seatSections: Section[];
+        try {
+          seatSections = await fetchSeats(id as string);
+          if (!seatSections || seatSections.length === 0) {
+            throw new Error('No seat data available');
           }
+        } catch (err) {
+          console.warn('Using default seat configuration:', err);
+          seatSections = generateDefaultSeats();
         }
-      });
-
-      setSections(newSections);
-      setIsLoading(false);
+        
+        setSections(seatSections);
+        if (seatSections.length > 0) {
+          setActiveSection(seatSections[0].id);
+        }
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load event data. Please try again later.');
+      } finally {
+        setIsLoading(false);
+      }
     };
-
-    generateTheaterSeats();
+    
+    fetchData();
   }, []);
 
   const toggleSeatSelection = (seat: Seat) => {
-    if (seat.status === 'unavailable') return;
+    if (seat.status !== 'available') return;
 
     setSelectedSeats((prev) => {
       const isSelected = prev.some((s) => s.id === seat.id);
       if (isSelected) {
         return prev.filter((s) => s.id !== seat.id);
       } else {
-        return [...prev, seat];
+        // Limit selection to 10 seats
+        if (prev.length >= 10) {
+          // Optional: Show a toast/notification here
+          return prev;
+        }
+        return [...prev, { ...seat, status: 'selected' }];
       }
     });
+  };
+
+  const removeSeat = (seatId: string) => {
+    setSelectedSeats(prev => 
+      prev.map(seat => 
+        seat.id === seatId ? { ...seat, status: 'available' } : seat
+      ).filter(seat => seat.id !== seatId)
+    );
+  };
+
+  const getTotalPrice = () => {
+    return selectedSeats.reduce((sum, seat) => sum + seat.price, 0);
+  };
+
+  const getServiceFee = () => {
+    return Math.ceil(getTotalPrice() * 0.05); // 5% service fee
   };
 
   const handleProceedToCheckout = () => {
@@ -119,10 +255,23 @@ export default function SeatSelection() {
     setShowCheckout(true);
   };
 
-  const handleConfirmBooking = () => {
-    // TODO: Implement booking confirmation
-    console.log('Booking confirmed:', selectedSeats);
-    router.push(`/confirmation/${id}`);
+  const handleConfirmBooking = async () => {
+    try {
+      // In a real app, you would call your API here
+      // await bookTickets(selectedSeats);
+      router.push(`/confirmation/${id}`);
+    } catch (error) {
+      console.error('Booking failed:', error);
+      // Handle error
+    }
+  };
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-NG', {
+      style: 'currency',
+      currency: 'NGN',
+      maximumFractionDigits: 0
+    }).format(amount);
   };
 
   if (isLoading) {
@@ -133,281 +282,477 @@ export default function SeatSelection() {
     );
   }
 
-  // Handle touch/mouse events for dragging
-  const handleTouchStart = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isMobile) return;
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    setIsDragging(true);
-    setStartX(clientX - (containerRef.current?.offsetLeft || 0));
-    setStartY(clientY - (containerRef.current?.offsetTop || 0));
-    setScrollLeft(containerRef.current?.scrollLeft || 0);
-    setScrollTop(containerRef.current?.scrollTop || 0);
-  };
+  if (error) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center p-8 max-w-md">
+          <div className="text-red-500 text-4xl mb-4">⚠️</div>
+          <h2 className="text-2xl font-semibold mb-2">Error Loading Event</h2>
+          <p className="text-gray-600 mb-6">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-amber-600 text-white rounded-md hover:bg-amber-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
-  const handleTouchMove = (e: React.TouchEvent | React.MouseEvent) => {
-    if (!isDragging || !isMobile) return;
-    e.preventDefault();
-    
-    const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-    const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY;
-    
-    const x = clientX - (containerRef.current?.offsetLeft || 0);
-    const y = clientY - (containerRef.current?.offsetTop || 0);
-    
-    const walkX = (x - startX) * 2;
-    const walkY = (y - startY) * 2;
-    
-    if (containerRef.current) {
-      containerRef.current.scrollLeft = scrollLeft - walkX;
-      containerRef.current.scrollTop = scrollTop - walkY;
+  if (!event) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <h2 className="text-xl font-semibold">Event not found</h2>
+          <p className="text-gray-600 mt-2">The requested event could not be found.</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Get seat status class
+  const getSeatStatusClass = (seat: Seat) => {
+    // Handle selected state first
+    if (seat.status === 'selected') {
+      const section = sections.find(s => s.name.toLowerCase() === seat.category.toLowerCase());
+      const color = section?.color.split('-')[1] || 'amber';
+      return `bg-${color}-500 border-${color}-600 text-white`;
     }
+    
+    // Handle unavailable and reserved states
+    if (seat.status === 'unavailable') return 'bg-gray-200 border-gray-300 cursor-not-allowed';
+    if (seat.status === 'reserved') return 'bg-gray-100 border-gray-300 cursor-not-allowed';
+    
+    // Available seat - color by section
+    const section = sections.find(s => s.name.toLowerCase() === seat.category.toLowerCase());
+    const baseClass = 'border-2';
+    
+    if (!section) return `${baseClass} bg-white border-gray-300 hover:border-amber-500`;
+    
+    // Get the base color from the section (e.g., 'bg-amber-500' -> 'amber')
+    const color = section.color.split('-')[1];
+    
+    // Force include the color classes to ensure they're not purged
+    const colorClasses = [
+      'border-amber-500', 'hover:bg-amber-50',
+      'border-blue-500', 'hover:bg-blue-50',
+      'border-green-500', 'hover:bg-green-50'
+    ];
+    
+    return `${baseClass} bg-white border-${color}-500 hover:bg-${color}-50`;
   };
-
-  const handleTouchEnd = () => {
-    setIsDragging(false);
-  };
-
-  const zoomIn = () => {
-    setScale(prev => Math.min(prev + 0.2, 1.5));
-  };
-
-  const zoomOut = () => {
-    setScale(prev => Math.max(prev - 0.2, 0.7));
-  };
-
+  
+  // Get section by ID
   return (
-    <div className="bg-gray-900 text-gray-300 font-body min-h-screen flex flex-col">
+    <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      
-      <header className="fixed w-full z-50 bg-gray-900/95 backdrop-blur-md shadow-lg">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <div className="container mx-auto px-4 py-4 flex justify-between items-center relative">
-      {/* Back Button (Left side) */}
-      <button 
-        onClick={() => router.back()}
-        className="flex items-center text-gray-300 hover:text-white transition-colors absolute left-4 sm:left-6 lg:left-8"
-      >
-        <span className="material-icons">arrow_back</span>
-        <span className="ml-2">Back</span>
-      </button>
+      <header className="bg-white shadow-sm">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex justify-between items-center h-16">
+            <button 
+              onClick={() => router.back()}
+              className="flex items-center text-gray-700 hover:text-gray-900 transition-colors"
+            >
+              <ChevronLeft className="w-5 h-5" />
+              <span className="ml-1 font-medium">Back</span>
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">Select Seats</h1>
+            <div className="w-20"></div> {/* For balance */}
+          </div>
+        </div>
+      </header>
 
-      {/* Seat Selection Title (Center) */}
-      <div className="flex-grow flex justify-center">
-        <h1 className="text-xl font-bold text-white">Seat Selection</h1>
+      {/* Event Info */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 py-4 sm:px-6 lg:px-8">
+          <div className="flex items-start space-x-4">
+            <div className="flex-shrink-0 w-16 h-16 bg-gray-200 rounded-md overflow-hidden">
+              <Image
+                src={event.image}
+                alt={event.title}
+                width={64}
+                height={64}
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="flex-1 min-w-0">
+              <h2 className="text-lg font-semibold text-gray-900 truncate">{event.title}</h2>
+              <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm text-gray-500">
+                <div className="flex items-center">
+                  <Calendar className="w-4 h-4 mr-1" />
+                  <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                </div>
+                <div className="flex items-center">
+                  <Clock className="w-4 h-4 mr-1" />
+                  <span>{event.time}</span>
+                </div>
+                <div className="flex items-center">
+                  <MapPin className="w-4 h-4 mr-1" />
+                  <span className="truncate">{event.venue}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {/* Placeholder for balance (Right side - optional but recommended for perfect centering) */}
-      <div className="w-20"></div> {/* Adjust width to match the approximate width of the Back button/text */}
-      
-    </div>
-  </div>
-</header>
-      
       {/* Main Content */}
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
-        {/* Screen */}
-        <div className="bg-gray-700 text-white py-4 mb-8 rounded-lg text-center font-semibold border border-gray-600 mx-auto max-w-3xl">
-          STAGE
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Seat Map */}
+          <div className="lg:flex-1">
+            {/* Screen */}
+            <div className="bg-gradient-to-r from-gray-200 to-gray-300 h-3 rounded-lg mb-8 mx-auto max-w-2xl relative overflow-hidden">
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-xs font-medium text-gray-600 bg-white/80 px-3 py-0.5 rounded-full">STAGE</span>
+              </div>
+            </div>
 
-        {/* Seating Area */}
-        <div 
-          ref={containerRef}
-          className="relative w-full h-[calc(100vh-300px)] overflow-auto touch-none bg-gray-800 rounded-xl p-4 border border-gray-700"
-          onTouchStart={handleTouchStart}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-          onMouseDown={handleTouchStart}
-          onMouseMove={handleTouchMove}
-          onMouseUp={handleTouchEnd}
-          onMouseLeave={handleTouchEnd}
-        >
-          <div className="p-4" style={{ transform: `scale(${scale})`, transformOrigin: 'top center' }}>
+            {/* Section Tabs - Mobile */}
+            {isMobile && (
+              <div className="mb-4 lg:hidden">
+                <label htmlFor="section-select" className="block text-sm font-medium text-gray-700 mb-1">
+                  Select Section
+                </label>
+                <select
+                  id="section-select"
+                  className="w-full rounded-md border-gray-300 shadow-sm focus:border-amber-500 focus:ring-amber-500"
+                  value={activeSection || ''}
+                  onChange={(e) => setActiveSection(e.target.value)}
+                >
+                  {sections.map((section) => (
+                    <option key={section.id} value={section.id}>
+                      {section.name} - {formatCurrency(section.price)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
 
-          {sections.map((section) => (
-            <div key={section.name} className="mb-8">
-              <h2 className="text-lg font-semibold mb-4 text-white px-2">
-                {section.name} Section - <span className={ACCENT_COLOR}>₦{section.price.toLocaleString()}</span>
-              </h2>
-              <div className="overflow-visible">
-                {Object.entries(section.rows).map(([rowLetter, seats]) => (
-                  <div key={rowLetter} className="flex items-center mb-2">
-                    <span className="w-6 text-xs font-medium text-gray-400">{rowLetter}</span>
-                    <div className="flex space-x-1">
-                      {seats.map((seat) => {
-                        const isSelected = selectedSeats.some((s) => s.id === seat.id);
-                        const isUnavailable = seat.status === 'unavailable';
-                        
-                        const getSeatColor = () => {
-                          if (isSelected) return 'bg-blue-600 border-blue-500 text-white';
-                          if (isUnavailable) return 'bg-gray-700 border-gray-600 text-gray-500';
-                          if (section.name === 'VIP') return 'bg-amber-500/20 border-amber-500 text-amber-500';
-                          if (section.name === 'Balcony') return 'bg-purple-600/20 border-purple-600 text-purple-400';
-                          return 'bg-blue-600/20 border-blue-500 text-blue-400';
-                        };
-                        
-                        return (
-                          <button
-                            key={seat.id}
-                            onClick={() => toggleSeatSelection(seat)}
-                            onTouchStart={(e) => e.stopPropagation()}
-                            disabled={isUnavailable}
-                            className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center text-xs font-medium transition-all ${
-                              isSelected 
-                                ? 'scale-110 shadow-lg' 
-                                : 'hover:brightness-125 active:scale-95'
-                            } ${getSeatColor()}`}
-                            aria-label={`${isUnavailable ? 'Unavailable: ' : ''}${section.name} - Row ${rowLetter} Seat ${seat.number} - ₦${seat.price.toLocaleString()}`}
-                          >
-                            {seat.number}
-                          </button>
-                        );
-                      })}
+            {/* Section Tabs - Desktop */}
+            <div className="hidden lg:flex mb-6 border-b border-gray-200">
+              <nav className="-mb-px flex space-x-8" aria-label="Sections">
+                {sections.map((section) => (
+                  <button
+                    key={section.id}
+                    onClick={() => setActiveSection(section.id)}
+                    className={`whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm ${
+                      activeSection === section.id
+                        ? 'border-amber-500 text-amber-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    {section.name} <span className="text-xs">({formatCurrency(section.price)})</span>
+                  </button>
+                ))}
+              </nav>
+            </div>
+
+            {/* Seating Area */}
+            <div 
+              ref={containerRef}
+              className="relative w-full overflow-auto touch-none bg-white rounded-xl p-4 border border-gray-200 shadow-sm"
+            >
+              <div className="p-2">
+                {visibleSections.map((section) => (
+                  <div key={section.id} className="mb-8">
+                    <h2 className="text-sm font-medium text-gray-700 mb-3 px-2">
+                      {section.name} Section - <span className="font-semibold">{formatCurrency(section.price)}</span>
+                    </h2>
+                    <div className="overflow-x-auto">
+                      {Object.entries(section.rows).map(([rowLetter, seats]) => (
+                        <div key={rowLetter} className="flex items-center mb-2">
+                          <span className="w-6 text-xs font-medium text-gray-500">{rowLetter}</span>
+                          <div className="flex space-x-1">
+                            {seats.map((seat) => {
+                              const isSelected = selectedSeats.some((s) => s.id === seat.id);
+                              const isUnavailable = seat.status === 'unavailable' || seat.status === 'reserved';
+                              
+                              return (
+                                <button
+                                  key={seat.id}
+                                  onClick={() => toggleSeatSelection(seat)}
+                                  disabled={isUnavailable}
+                                  className={`flex-shrink-0 w-8 h-8 rounded border flex items-center justify-center text-xs font-medium transition-all ${
+                                    isSelected 
+                                      ? 'scale-110 shadow-md' 
+                                      : isUnavailable 
+                                        ? '' 
+                                        : 'hover:scale-105 active:scale-95'
+                                  } ${getSeatStatusClass(seat)}`}
+                                  aria-label={`${isUnavailable ? 'Unavailable: ' : ''}${section.name} - Row ${rowLetter} Seat ${seat.number} - ${formatCurrency(seat.price)}`}
+                                >
+                                  {isUnavailable ? '' : seat.number}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          ))}
-        </div>
-      </div>
 
-      {/* Legend */}
-      <div className="mt-6 p-4 bg-gray-800 rounded-lg border border-gray-700 max-w-3xl mx-auto">
-        <h4 className="font-semibold mb-3 text-white text-sm">Legend</h4>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3 text-xs">
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border border-blue-500 bg-blue-600/20"></div>
-            <span className="text-gray-300">Regular</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border border-amber-500 bg-amber-500/20"></div>
-            <span className="text-gray-300">VIP</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border border-purple-600 bg-purple-600/20"></div>
-            <span className="text-gray-300">Balcony</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border border-blue-500 bg-blue-600"></div>
-            <span className="text-gray-300">Selected</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded border border-gray-600 bg-gray-700"></div>
-            <span className="text-gray-500">Unavailable</span>
-          </div>
-        </div>
-      </div>
-
-      </main>
-
-      {/* Selected Seats Summary */}
-      {selectedSeats.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-gray-800 border-t border-gray-700 p-4 shadow-lg">
-          <div className="max-w-7xl mx-auto">
-            <div className="flex justify-between items-center">
-              <div className="max-w-[60%]">
-                <h3 className="font-medium text-white text-sm">
-                  {selectedSeats.length} {selectedSeats.length === 1 ? 'Seat' : 'Seats'} Selected • 
-                  <span className={ACCENT_COLOR}>
-                    {' '}₦{selectedSeats.reduce((sum, seat) => sum + seat.price, 0).toLocaleString()}
-                  </span>
-                </h3>
-                <p className="text-xs text-gray-400 truncate mt-1">
-                  {selectedSeats.map((seat) => `${seat.row}${seat.number}`).join(', ')}
-                </p>
-              </div>
-              <button 
-                onClick={handleProceedToCheckout}
-                className={`${ACCENT_BG} hover:bg-amber-600 text-gray-900 font-semibold py-3 px-6 rounded-lg text-sm transition-colors duration-200 flex items-center gap-2`}
-              >
-                <span>Continue</span>
-                <span className="material-icons text-base">arrow_forward</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Checkout Modal */}
-      {showCheckout && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className={`${DARK_BG} rounded-xl p-6 w-full max-w-md max-h-[90vh] overflow-y-auto border ${BORDER_COLOR} shadow-2xl`}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-bold text-white">Confirm Your Seats</h2>
-              <button 
-                onClick={() => setShowCheckout(false)}
-                className="text-gray-400 hover:text-white"
-              >
-                <span className="material-icons">close</span>
-              </button>
-            </div>
-            <div className="space-y-4 mb-6">
-              <div className="bg-gray-800 p-4 rounded-lg border border-gray-700">
-                <h3 className="font-medium text-gray-300 mb-3">Selected Seats</h3>
-                <ul className="space-y-2">
-                  {selectedSeats.map((seat) => (
-                    <li key={seat.id} className="flex justify-between items-center py-2 border-b border-gray-700 last:border-0">
-                      <div>
-                        <p className="text-white font-medium">
-                          {seat.category} - Row {seat.row} Seat {seat.number}
-                        </p>
-                        <p className="text-amber-500 text-sm">
-                          ₦{seat.price.toLocaleString()}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => toggleSeatSelection(seat)}
-                        className="text-gray-400 hover:text-white p-1"
-                      >
-                        <span className="material-icons text-lg">close</span>
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-                
-                <div className="mt-4 pt-4 border-t border-gray-700">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-gray-400">Subtotal</span>
-                    <span className="text-white">
-                      ₦{selectedSeats.reduce((sum, seat) => sum + seat.price, 0).toLocaleString()}
-                    </span>
-                  </div>
-                  <div className="flex justify-between text-gray-400 text-sm">
-                    <span>Fees</span>
-                    <span>₦500</span>
-                  </div>
-                  <div className="flex justify-between mt-3 pt-3 border-t border-gray-700">
-                    <span className="font-semibold text-white">Total</span>
-                    <span className={`${ACCENT_COLOR} font-bold`}>
-                      ₦{(selectedSeats.reduce((sum, seat) => sum + seat.price, 0) + 500).toLocaleString()}
-                    </span>
-                  </div>
-                </div>
+            {/* Legend */}
+            <div className="mt-6 bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-gray-700">Seat Status</h3>
+                <button 
+                  onClick={() => setShowLegend(!showLegend)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  {showLegend ? (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                    </svg>
+                  ) : (
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  )}
+                </button>
               </div>
               
-              <div className="bg-blue-900/20 border border-blue-800/50 rounded-lg p-4 text-sm text-blue-300">
-                <p>Your seats will be held for 10 minutes while you complete your booking.</p>
+              {showLegend && (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
+                  {sections.map((section) => (
+                    <div key={section.id} className="flex items-center">
+                      <div className={`w-4 h-4 rounded-full mr-2 ${section.color}`}></div>
+                      <span className="text-gray-700">{section.name}</span>
+                    </div>
+                  ))}
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full mr-2 bg-amber-600"></div>
+                    <span className="text-gray-700">Selected</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 rounded-full mr-2 bg-gray-200"></div>
+                    <span className="text-gray-500">Unavailable</span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          </div>
+          
+          {/* Order Summary */}
+          <div className="lg:w-80 flex-shrink-0">
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden sticky top-4">
+              <div className="p-4 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900">Order Summary</h3>
+                <p className="text-sm text-gray-500 mt-1">
+                  {selectedSeats.length} {selectedSeats.length === 1 ? 'Ticket' : 'Tickets'} Selected
+                </p>
+              </div>
+              
+              {/* Selected Seats */}
+              <div className="max-h-64 overflow-y-auto">
+                {selectedSeats.length > 0 ? (
+                  <ul className="divide-y divide-gray-200">
+                    {selectedSeats.map((seat) => {
+                      const section = sections.find(s => s.id === seat.id.split('-')[0]);
+                      return (
+                        <li key={seat.id} className="p-3 flex justify-between items-center">
+                          <div>
+                            <p className="text-sm font-medium text-gray-900">
+                              {section?.name} - Row {seat.row}, Seat {seat.number}
+                            </p>
+                            <p className="text-sm text-gray-500">{formatCurrency(seat.price)}</p>
+                          </div>
+                          <button
+                            onClick={() => removeSeat(seat.id)}
+                            className="text-gray-400 hover:text-red-500"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                ) : (
+                  <div className="p-6 text-center">
+                    <Ticket className="w-10 h-10 mx-auto text-gray-300" />
+                    <p className="mt-2 text-sm text-gray-500">Select seats to continue</p>
+                  </div>
+                )}
+              </div>
+              
+              {/* Price Summary */}
+              <div className="p-4 border-t border-gray-200">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Subtotal</span>
+                    <span className="text-gray-900">{formatCurrency(getTotalPrice())}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-500">Service Fee</span>
+                    <span className="text-gray-900">{formatCurrency(getServiceFee())}</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2 mt-2">
+                    <div className="flex justify-between font-medium">
+                      <span>Total</span>
+                      <span className="text-amber-600">
+                        {formatCurrency(getTotalPrice() + getServiceFee())}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                <button
+                  onClick={handleProceedToCheckout}
+                  disabled={selectedSeats.length === 0}
+                  className={`w-full mt-4 py-3 px-4 rounded-lg font-medium text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-colors flex items-center justify-center`}
+                >
+                  Continue to Checkout
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </button>
+                
+                <p className="mt-3 text-xs text-center text-gray-500">
+                  You won't be charged until you complete your purchase
+                </p>
               </div>
             </div>
             
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={handleConfirmBooking}
-                className={`w-full py-3 ${ACCENT_BG} hover:bg-amber-600 text-gray-900 font-semibold rounded-lg transition-colors duration-200 flex items-center justify-center gap-2`}
+            {/* Help Section */}
+            <div className="mt-4 bg-white rounded-xl border border-gray-200 p-4">
+              <h4 className="text-sm font-medium text-gray-900 mb-2">Need help?</h4>
+              <p className="text-sm text-gray-600 mb-3">
+                Contact our support team for assistance with your booking.
+              </p>
+              <a 
+                href="mailto:support@nationaltheater.ng" 
+                className="text-sm font-medium text-amber-600 hover:text-amber-700"
               >
-                <span>Proceed to Payment</span>
-                <span className="material-icons">arrow_forward</span>
-              </button>
-              <button 
-                onClick={() => setShowCheckout(false)}
-                className="w-full py-3 bg-transparent hover:bg-gray-800 text-gray-300 font-medium rounded-lg border border-gray-700 transition-colors duration-200"
-              >
-                Back to Seats
-              </button>
+                Contact Support →
+              </a>
+            </div>
+          </div>
+
+        </div>
+      </main>
+
+      {/* Checkout Modal */}
+      {showCheckout && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Confirm Your Seats</h2>
+                <button 
+                  onClick={() => setShowCheckout(false)}
+                  className="text-gray-400 hover:text-gray-500"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Event Info */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium text-gray-900 mb-2">{event.title}</h3>
+                  <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
+                    <div className="flex items-center">
+                      <Calendar className="w-4 h-4 mr-2 text-gray-400" />
+                      <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <Clock className="w-4 h-4 mr-2 text-gray-400" />
+                      <span>{event.time}</span>
+                    </div>
+                    <div className="col-span-2 flex items-start">
+                      <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-400" />
+                      <span className="flex-1">{event.venue}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Selected Seats */}
+                <div>
+                  <h3 className="font-medium text-gray-900 mb-3">Selected Seats</h3>
+                  <ul className="space-y-3">
+                    {selectedSeats.map((seat) => {
+                      const section = sections.find(s => s.id === seat.id.split('-')[0]);
+                      return (
+                        <li key={seat.id} className="flex justify-between items-center p-3 bg-gray-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {section?.name} - Row {seat.row}, Seat {seat.number}
+                            </p>
+                            <p className="text-sm text-gray-500">{formatCurrency(seat.price)}</p>
+                          </div>
+                          <button
+                            onClick={() => {
+                              removeSeat(seat.id);
+                              if (selectedSeats.length === 1) setShowCheckout(false);
+                            }}
+                            className="text-gray-400 hover:text-red-500 p-1"
+                          >
+                            <X className="w-5 h-5" />
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
+                
+                {/* Price Summary */}
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal ({selectedSeats.length} {selectedSeats.length === 1 ? 'ticket' : 'tickets'})</span>
+                    <span className="font-medium">{formatCurrency(getTotalPrice())}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Service Fee</span>
+                    <span className="font-medium">{formatCurrency(getServiceFee())}</span>
+                  </div>
+                  <div className="border-t border-gray-200 pt-3">
+                    <div className="flex justify-between font-semibold">
+                      <span>Total</span>
+                      <span className="text-amber-600">
+                        {formatCurrency(getTotalPrice() + getServiceFee())}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Terms and Conditions */}
+                <div className="bg-amber-50 p-4 rounded-lg">
+                  <div className="flex">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-amber-700">
+                        By proceeding, you agree to our Terms of Service and confirm that you are at least 18 years old. 
+                        Tickets are non-refundable except in case of event cancellation.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Action Buttons */}
+                <div className="space-y-3">
+                  <button
+                    onClick={handleConfirmBooking}
+                    className={`w-full py-3 px-4 rounded-lg font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-colors flex items-center justify-center`}
+                  >
+                    Confirm & Pay Now
+                    <ArrowRight className="w-4 h-4 ml-2" />
+                  </button>
+                  
+                  <button
+                    onClick={() => setShowCheckout(false)}
+                    className="w-full py-2.5 px-4 rounded-lg font-medium text-gray-700 hover:bg-gray-100 transition-colors"
+                  >
+                    Back to Seat Selection
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>
