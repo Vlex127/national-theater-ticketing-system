@@ -532,10 +532,10 @@ function EventListItem({ event, formatDate }: { event: Event; formatDate: (date:
                 </svg>
                 Book Now
               </Link>
-            </div>
+            </div>  
           </div>
         </div>
       </div>
     </div>
   );
-}
+} 

@@ -1,41 +1,35 @@
 // src/app/api/events/[id]/route.ts
 import { NextResponse } from 'next/server';
-import pool from '@/app/lib/db';
+import { db } from '@/lib/db';
+import * as schema from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id } = await params;
-    console.log('Fetching event with ID:', id);
-    client = await pool.connect();
-    const result = await client.query('SELECT * FROM events WHERE id = $1', [id]);
-    console.log('Query result:', result.rows);
-    
-    if (result.rows.length === 0) {
-      console.log('No event found with ID:', id);
-      return new NextResponse(
-        JSON.stringify({ error: 'Event not found' }),
-        { status: 404, headers: { 'Content-Type': 'application/json' } }
-      );
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return NextResponse.json({ error: 'Invalid event id (expected UUID)' }, { status: 400 });
     }
 
-    return new NextResponse(
-      JSON.stringify(result.rows[0]),
-      { status: 200, headers: { 'Content-Type': 'application/json' } }
-    );
+    const [event] = await db
+      .select()
+      .from(schema.events)
+      .where(eq(schema.events.id, id))
+      .limit(1);
+
+    if (!event) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
+    }
+
+    return NextResponse.json(event);
   } catch (error) {
     console.error('Database error:', error);
-    return new NextResponse(
-      JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
-  } finally {
-    if (client) {
-      client.release();
-    }
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
 
@@ -43,46 +37,64 @@ export async function PUT(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  let client;
   try {
     const { id } = await params;
     const eventData = await request.json();
     
     // Validate required fields
-    if (!eventData.title || !eventData.date || !eventData.venue || !eventData.category) {
+    const requiredFields = ['title', 'date', 'time', 'venue', 'category'];
+    const missingFields = requiredFields.filter(field => !eventData[field]);
+    
+    if (missingFields.length > 0) {
       return new NextResponse(
-        JSON.stringify({ error: 'Missing required fields' }),
+        JSON.stringify({ 
+          error: 'Missing required fields',
+          missingFields 
+        }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
 
-    client = await pool.connect();
-    
-    const result = await client.query(
-      `UPDATE events 
-       SET title = $1, 
-           description = $2, 
-           image_url = $3, 
-           link = $4, 
-           date = $5, 
-           venue = $6, 
-           category = $7,
-           updated_at = NOW()
-       WHERE id = $8
-       RETURNING *`,
-      [
-        eventData.title,
-        eventData.description || null,
-        eventData.image_url || null,
-        eventData.link || null,
-        eventData.date,
-        eventData.venue,
-        eventData.category,
-        id
-      ]
-    );
+    // Parse and validate the date
+    let eventDate: Date;
+    try {
+      eventDate = eventData.date ? new Date(eventData.date) : new Date();
+      if (isNaN(eventDate.getTime())) {
+        throw new Error('Invalid date format');
+      }
+    } catch (error) {
+      console.error('Invalid date:', eventData.date, error);
+      return new NextResponse(
+        JSON.stringify({ error: 'Invalid date format' }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (result.rows.length === 0) {
+    // Format the time (ensure it's in HH:MM format)
+    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+    const eventTime = timeRegex.test(eventData.time) ? eventData.time : '19:00';
+    
+    // Update the event using Drizzle ORM
+    const now = new Date();
+
+    const [updatedEvent] = await db
+      .update(schema.events)
+      .set({
+        title: eventData.title,
+        description: eventData.description || null,
+        image_url: eventData.image_url || null,
+        date: eventDate,
+        time: eventTime,
+        venue: eventData.venue,
+        category: eventData.category,
+        duration: eventData.duration || '2h',
+        age_restriction: eventData.age_restriction || '12+',
+        updated_at: now
+      })
+      .where(eq(schema.events.id, id))
+      .returning();
+
+    if (!updatedEvent) {
       return new NextResponse(
         JSON.stringify({ error: 'Event not found' }),
         { status: 404, headers: { 'Content-Type': 'application/json' } }
@@ -90,7 +102,7 @@ export async function PUT(
     }
 
     return new NextResponse(
-      JSON.stringify(result.rows[0]),
+      JSON.stringify(updatedEvent),
       { status: 200, headers: { 'Content-Type': 'application/json' } }
     );
   } catch (error) {
@@ -99,9 +111,5 @@ export async function PUT(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
-  } finally {
-    if (client) {
-      client.release();
-    }
   }
 }

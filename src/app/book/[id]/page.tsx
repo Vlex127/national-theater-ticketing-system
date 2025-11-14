@@ -3,8 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { Loader2, ChevronLeft, ArrowRight, Calendar, Clock, MapPin, Ticket, X } from 'lucide-react';
+import { Loader2, ChevronLeft, ArrowRight, Calendar, Clock, MapPin, Ticket, X, CheckCircle } from 'lucide-react';
 import { useMediaQuery } from 'react-responsive';
+import { createBooking, updateSeatReservation } from '@/lib/api';
+import { toast } from 'react-toastify';
 
 // Theme colors
 const THEME = {
@@ -33,6 +35,8 @@ const THEME = {
 
 type Seat = {
   id: string;
+  sectionId: string;
+  sectionName: string;
   row: string;
   number: number;
   status: 'available' | 'selected' | 'unavailable' | 'reserved';
@@ -62,6 +66,15 @@ type EventDetails = {
   ageRestriction: string;
 };
 
+const SECTION_COLORS: Record<string, string> = {
+  VIP: 'bg-amber-500',
+  Standard: 'bg-blue-500',
+  Balcony: 'bg-green-500',
+};
+
+const getSectionColor = (sectionName: string) =>
+  SECTION_COLORS[sectionName as keyof typeof SECTION_COLORS] ?? 'bg-gray-500';
+
 // Fetch event data from API
 const fetchEvent = async (id: string): Promise<EventDetails> => {
   const response = await fetch(`/api/events/${id}`);
@@ -70,25 +83,104 @@ const fetchEvent = async (id: string): Promise<EventDetails> => {
   }
   const event = await response.json();
   
+  // Extract date and time from the PostgreSQL timestamp
+  // The date is stored in UTC in the database
+  const eventDate = new Date(event.date);
+  
+  // Get UTC date components
+  const year = eventDate.getUTCFullYear();
+  const month = String(eventDate.getUTCMonth() + 1).padStart(2, '0');
+  const day = String(eventDate.getUTCDate()).padStart(2, '0');
+  const hours = String(eventDate.getUTCHours()).padStart(2, '0');
+  const minutes = String(eventDate.getUTCMinutes()).padStart(2, '0');
+  
+  const formattedDate = `${year}-${month}-${day}`; // YYYY-MM-DD
+  const formattedTime = `${hours}:${minutes}`; // HH:MM in UTC
+  
   // Transform API response to match our EventDetails type
   return {
     id: event.id,
     title: event.title,
-    date: event.date,
-    time: event.time || '19:00', // Default time if not provided
+    date: formattedDate,
+    time: formattedTime,
     venue: event.venue,
-    image: event.image_url || '/images/placeholder-event.jpg',
+    image: event.imageUrl || event.image_url || '/images/placeholder-event.jpg',
     description: event.description || '',
-    duration: '2h 30m', // This would ideally come from the API
-    ageRestriction: '12+', // This would ideally come from the API
+    duration: '2h 30m',
+    ageRestriction: '12+',
   };
 };
 
-// Generate seat data locally
-const fetchSeats = async (eventId: string): Promise<Section[]> => {
-  // For now, we'll always use the default seat generation
-  // since we don't have a database for seats yet
-  return generateDefaultSeats();
+type ApiSeat = {
+  id: string;
+  section: string;
+  row: string;
+  number: number;
+  status: 'available' | 'reserved' | 'booked';
+  price: string | number;
+  category: 'VIP' | 'Standard' | 'Balcony';
+};
+
+const fetchSeatSections = async (eventId: string): Promise<Section[]> => {
+  const response = await fetch(`/api/events/${eventId}/seats`, {
+    cache: 'no-store',
+  });
+
+  if (!response.ok) {
+    throw new Error('Failed to fetch seats');
+  }
+
+  const apiSeats: ApiSeat[] = await response.json();
+
+  if (!apiSeats.length) {
+    throw new Error('No seats available');
+  }
+
+  const sectionsMap = new Map<string, Section>();
+
+  const mapStatus = (status: ApiSeat['status']): Seat['status'] => {
+    if (status === 'available') return 'available';
+    if (status === 'reserved') return 'reserved';
+    return 'unavailable';
+  };
+
+  apiSeats.forEach((seat) => {
+    const sectionId = seat.section.toLowerCase().replace(/\s+/g, '-');
+
+    if (!sectionsMap.has(sectionId)) {
+      sectionsMap.set(sectionId, {
+        id: sectionId,
+        name: seat.section,
+        price: typeof seat.price === 'string' ? Number(seat.price) : seat.price,
+        color: getSectionColor(seat.section),
+        rows: {},
+      });
+    }
+
+    const section = sectionsMap.get(sectionId)!;
+    if (!section.rows[seat.row]) {
+      section.rows[seat.row] = [];
+    }
+
+    section.rows[seat.row].push({
+      id: seat.id,
+      sectionId,
+      sectionName: seat.section,
+      row: seat.row,
+      number: seat.number,
+      status: mapStatus(seat.status),
+      price: typeof seat.price === 'string' ? Number(seat.price) : seat.price,
+      category: seat.category,
+    });
+  });
+
+  sectionsMap.forEach((section) => {
+    Object.keys(section.rows).forEach((rowKey) => {
+      section.rows[rowKey] = section.rows[rowKey].sort((a, b) => a.number - b.number);
+    });
+  });
+
+  return Array.from(sectionsMap.values());
 };
 
 // Generate default seats if API fails
@@ -98,22 +190,22 @@ const generateDefaultSeats = (): Section[] => {
       id: 'vip',
       name: 'VIP',
       price: 25000,
-      color: 'bg-amber-500',
-      rows: generateRows('vip', 'VIP', 5, 20, 25000, 0.8),
+      color: getSectionColor('VIP'),
+      rows: generateRows('vip', 'VIP', 'VIP', 5, 20, 25000, 1),
     },
     {
       id: 'standard',
       name: 'Standard',
       price: 15000,
-      color: 'bg-blue-500',
-      rows: generateRows('standard', 'Standard', 10, 30, 15000, 0.9),
+      color: getSectionColor('Standard'),
+      rows: generateRows('standard', 'Standard', 'Standard', 10, 30, 15000, 1),
     },
     {
       id: 'balcony',
       name: 'Balcony',
       price: 8000,
-      color: 'bg-green-500',
-      rows: generateRows('balcony', 'Balcony', 8, 25, 8000, 0.7),
+      color: getSectionColor('Balcony'),
+      rows: generateRows('balcony', 'Balcony', 'Balcony', 8, 25, 8000, 1),
     },
   ];
 };
@@ -121,6 +213,7 @@ const generateDefaultSeats = (): Section[] => {
 // Helper function to generate rows of seats
 const generateRows = (
   sectionId: string,
+  sectionName: string,
   category: 'VIP' | 'Standard' | 'Balcony',
   rowCount: number,
   seatsPerRow: number,
@@ -139,6 +232,8 @@ const generateRows = (
       
       rows[rowLetter].push({
         id: seatId,
+        sectionId,
+        sectionName,
         row: rowLetter,
         number: j,
         status: isAvailable ? 'available' : 'unavailable',
@@ -161,9 +256,18 @@ export default function SeatSelection() {
   const [selectedSeats, setSelectedSeats] = useState<Seat[]>([]);
   const [showCheckout, setShowCheckout] = useState(false);
   const [activeSection, setActiveSection] = useState<string>('');
-  const [showLegend, setShowLegend] = useState(true); // Added type annotation
+  const [showLegend, setShowLegend] = useState(true);
+  const [isBooking, setIsBooking] = useState(false);
+  const [bookingComplete, setBookingComplete] = useState(false);
+  const [bookingData, setBookingData] = useState<any>(null);
+  const [email, setEmail] = useState('');
+  const [showEmailInput, setShowEmailInput] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const isMobile = useMediaQuery({ maxWidth: 768 });
+  const [seatOps, setSeatOps] = useState<Record<string, boolean>>({});
+  const isUUID = (id: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+  const hasNonUUIDSelected = selectedSeats.some((s) => !isUUID(s.id));
   
   // Filter sections to only show active section on mobile
   const visibleSections = isMobile && activeSection 
@@ -183,7 +287,7 @@ export default function SeatSelection() {
         // Try to fetch seat data from API, fallback to default if fails
         let seatSections: Section[];
         try {
-          seatSections = await fetchSeats(id as string);
+          seatSections = await fetchSeatSections(id as string);
           if (!seatSections || seatSections.length === 0) {
             throw new Error('No seat data available');
           }
@@ -205,32 +309,75 @@ export default function SeatSelection() {
     };
     
     fetchData();
-  }, []);
+  }, [id]);
 
-  const toggleSeatSelection = (seat: Seat) => {
-    if (seat.status !== 'available') return;
+  const toggleSeatSelection = async (seat: Seat) => {
+    if (!event) return;
+    if (seatOps[seat.id]) return; // prevent double clicks
 
-    setSelectedSeats((prev) => {
-      const isSelected = prev.some((s) => s.id === seat.id);
-      if (isSelected) {
-        return prev.filter((s) => s.id !== seat.id);
-      } else {
-        // Limit selection to 10 seats
-        if (prev.length >= 10) {
-          // Optional: Show a toast/notification here
-          return prev;
+    const isSelected = selectedSeats.some((s) => s.id === seat.id);
+
+    try {
+      setSeatOps((m) => ({ ...m, [seat.id]: true }));
+
+      if (!isSelected) {
+        // selecting => reserve in DB first
+        if (seat.status !== 'available') return;
+        if (isUUID(seat.id)) {
+          await updateSeatReservation(event.id, [seat.id], 'reserve');
         }
-        return [...prev, { ...seat, status: 'selected' }];
+
+        // update UI: mark seat reserved in grid, add to selected as 'selected'
+        setSections((prev) => updateSeatStatusInSections(prev, seat.id, 'reserved'));
+        setSelectedSeats((prev) => {
+          if (prev.length >= 10) return prev;
+          return [...prev, { ...seat, status: 'selected' }];
+        });
+      } else {
+        // deselect => release
+        if (isUUID(seat.id)) {
+          await updateSeatReservation(event.id, [seat.id], 'release');
+        }
+        setSections((prev) => updateSeatStatusInSections(prev, seat.id, 'available'));
+        setSelectedSeats((prev) => prev.filter((s) => s.id !== seat.id));
       }
-    });
+    } catch (e) {
+      console.error('Seat toggle failed', e);
+      toast.error(e instanceof Error ? e.message : 'Seat update failed');
+      // optional: refetch seats to reconcile
+    } finally {
+      setSeatOps((m) => ({ ...m, [seat.id]: false }));
+    }
   };
 
-  const removeSeat = (seatId: string) => {
-    setSelectedSeats(prev => 
-      prev.map(seat => 
-        seat.id === seatId ? { ...seat, status: 'available' } : seat
-      ).filter(seat => seat.id !== seatId)
-    );
+  const removeSeat = async (seatId: string) => {
+    if (!event) return;
+    try {
+      if (isUUID(seatId)) {
+        await updateSeatReservation(event.id, [seatId], 'release');
+      }
+      setSections((prev) => updateSeatStatusInSections(prev, seatId, 'available'));
+      setSelectedSeats((prev) => prev.filter((s) => s.id !== seatId));
+    } catch (e) {
+      console.error('Release failed', e);
+      toast.error('Failed to release seat');
+    }
+  };
+
+  const updateSeatStatusInSections = (
+    sectionsState: Section[],
+    seatId: string,
+    newStatus: Seat['status']
+  ): Section[] => {
+    return sectionsState.map((sec) => ({
+      ...sec,
+      rows: Object.fromEntries(
+        Object.entries(sec.rows).map(([rowKey, rowSeats]) => [
+          rowKey,
+          rowSeats.map((s) => (s.id === seatId ? { ...s, status: newStatus } : s)),
+        ])
+      ),
+    }));
   };
 
   const getTotalPrice = () => {
@@ -246,14 +393,125 @@ export default function SeatSelection() {
     setShowCheckout(true);
   };
 
+  const handleProceedToPayment = () => {
+    if (selectedSeats.length === 0) return;
+    setShowEmailInput(true);
+  };
+
   const handleConfirmBooking = async () => {
+    if (!event) return;
+    if (hasNonUUIDSelected || !isUUID(event.id)) {
+      toast.error('These seats are not from the database. Generate seats for this event and open /book/<EVENT_UUID>');
+      return;
+    }
+    
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      toast.error('Please enter a valid email address');
+      return;
+    }
+    
     try {
-      // In a real app, you would call your API here
-      // await bookTickets(selectedSeats);
-      router.push(`/confirmation/${id}`);
+      setIsBooking(true);
+
+      const booking = await createBooking({
+        eventId: event.id,
+        seatIds: selectedSeats.map(seat => seat.id),
+        paymentMethod: 'card',
+        email: email // Include the email in the booking request
+      });
+
+      // If a Paystack authorization URL is provided, redirect the user immediately
+      if (booking.authorizationUrl) {
+        toast.success('Redirecting to Paystack to complete payment...');
+        window.location.href = booking.authorizationUrl;
+        return;
+      }
+
+      setBookingData(booking);
+      setBookingComplete(true);
+      setShowEmailInput(false);
+
+      // Clear selected seats
+      setSelectedSeats([]);
+
+      toast.success('Booking confirmed! Redirecting to your tickets...');
+
+      // Redirect to booking confirmation page after a short delay
+      setTimeout(() => {
+        router.push(`/bookings/${booking.bookingId}`);
+      }, 2000);
+
     } catch (error) {
       console.error('Booking failed:', error);
-      // Handle error
+      toast.error(error instanceof Error ? error.message : 'Failed to complete booking');
+    } finally {
+      setIsBooking(false);
+    }
+  };
+
+  // Format date for display (handles PostgreSQL timestamps like '2025-11-21 09:18:04.206156+00')
+  const formatDate = (dateTimeString: string) => {
+    try {
+      // Handle PostgreSQL timestamp format
+      const date = new Date(dateTimeString);
+      
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid date string:', dateTimeString);
+        return 'Date not available';
+      }
+      
+      return date.toLocaleDateString('en-NG', { 
+        weekday: 'short', 
+        year: 'numeric',
+        month: 'short', 
+        day: 'numeric' 
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return dateTimeString.split(' ')[0]; // Return just the date part if parsing fails
+    }
+  };
+  
+  // Format time for display (handles various time formats including 'HH:MM' and PostgreSQL timestamps)
+  const formatTime = (timeString: string) => {
+    if (!timeString) return 'Time TBD';
+    
+    try {
+      // Handle simple 'HH:MM' format
+      if (/^\d{1,2}:\d{2}$/.test(timeString)) {
+        // Parse as UTC time to avoid timezone conversion
+        const [hours, minutes] = timeString.split(':').map(Number);
+        const date = new Date();
+        date.setUTCHours(hours, minutes, 0, 0);
+        return date.toLocaleTimeString('en-NG', {
+          timeZone: 'UTC',
+          hour: 'numeric',
+          minute: '2-digit',
+          hour12: true
+        }).toUpperCase() + ' WAT'; // Add timezone indicator
+      }
+      
+      // Handle full date-time strings
+      const date = new Date(timeString);
+      
+      if (isNaN(date.getTime())) {
+        console.warn('Invalid time string:', timeString);
+        return timeString;
+      }
+      
+      // Format time in 12-hour format with AM/PM in UTC
+      return date.toLocaleTimeString('en-NG', { 
+        timeZone: 'UTC',
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }).toUpperCase() + ' WAT'; // Add timezone indicator
+    } catch (error) {
+      console.error('Error formatting time:', error);
+      const timePart = timeString.split(' ')[1]?.split('.')[0];
+      return timePart ? timePart + ' WAT' : timeString;
     }
   };
 
@@ -371,12 +629,12 @@ export default function SeatSelection() {
               <h2 className="text-lg font-semibold text-gray-900 truncate">{event.title}</h2>
               <div className="mt-1 flex flex-col sm:flex-row sm:flex-wrap sm:space-x-4 text-sm text-gray-500">
                 <div className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-1" />
-                  <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                  <Calendar className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span>{formatDate(event.date)}</span>
                 </div>
                 <div className="flex items-center">
-                  <Clock className="w-4 h-4 mr-1" />
-                  <span>{event.time}</span>
+                  <Clock className="w-4 h-4 mr-1 flex-shrink-0" />
+                  <span>{formatTime(event.time)}</span>
                 </div>
                 <div className="flex items-center">
                   <MapPin className="w-4 h-4 mr-1" />
@@ -544,12 +802,12 @@ export default function SeatSelection() {
                 {selectedSeats.length > 0 ? (
                   <ul className="divide-y divide-gray-200">
                     {selectedSeats.map((seat) => {
-                      const section = sections.find(s => s.id === seat.id.split('-')[0]);
+                      const section = sections.find(s => s.id === seat.sectionId);
                       return (
                         <li key={seat.id} className="p-3 flex justify-between items-center">
                           <div>
                             <p className="text-sm font-medium text-gray-900">
-                              {section?.name} - Row {seat.row}, Seat {seat.number}
+                              {(section?.name ?? seat.sectionName)} - Row {seat.row}, Seat {seat.number}
                             </p>
                             <p className="text-sm text-gray-500">{formatCurrency(seat.price)}</p>
                           </div>
@@ -647,11 +905,11 @@ export default function SeatSelection() {
                   <div className="grid grid-cols-2 gap-2 text-sm text-gray-600">
                     <div className="flex items-center">
                       <Calendar className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{new Date(event.date).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</span>
+                      <span>{formatDate(event.date)}</span>
                     </div>
                     <div className="flex items-center">
                       <Clock className="w-4 h-4 mr-2 text-gray-400" />
-                      <span>{event.time}</span>
+                      <span>{formatTime(event.time)}</span>
                     </div>
                     <div className="col-span-2 flex items-start">
                       <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0 text-gray-400" />
@@ -727,14 +985,56 @@ export default function SeatSelection() {
                 </div>
                 
                 {/* Action Buttons */}
-                <div className="space-y-3">
-                  <button
-                    onClick={handleConfirmBooking}
-                    className={`w-full py-3 px-4 rounded-lg font-semibold text-white bg-amber-600 hover:bg-amber-700 shadow-md transition-colors flex items-center justify-center`}
-                  >
-                    Confirm & Pay Now
-                    <ArrowRight className="w-4 h-4 ml-2" />
-                  </button>
+                <div className="mt-6 space-y-3">
+                  {showEmailInput ? (
+                    <div className="space-y-3">
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="Enter your email for ticket confirmation"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                          required
+                        />
+                      </div>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setShowEmailInput(false)}
+                          className="flex-1 py-2 px-4 border border-gray-300 rounded-md font-medium text-gray-700 bg-white hover:bg-gray-50 transition-colors"
+                        >
+                          Back
+                        </button>
+                        <button
+                          onClick={handleConfirmBooking}
+                          disabled={!email || isBooking}
+                          className={`flex-1 py-2 px-4 rounded-md font-medium text-white ${!email ? 'bg-gray-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'} transition-colors flex items-center justify-center gap-2`}
+                        >
+                          {isBooking ? (
+                            <>
+                              <Loader2 className="w-5 h-5 animate-spin" />
+                              Processing...
+                            </>
+                          ) : (
+                            'Confirm & Pay'
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleProceedToPayment}
+                      disabled={selectedSeats.length === 0}
+                      className={`w-full py-3 px-6 rounded-md font-medium text-white ${selectedSeats.length === 0 ? 'bg-gray-400 cursor-not-allowed' : 'bg-amber-600 hover:bg-amber-700'} transition-colors flex items-center justify-center gap-2`}
+                    >
+                      Proceed to Payment
+                      <ArrowRight className="w-5 h-5" />
+                    </button>
+                  )}
                   
                   <button
                     onClick={() => setShowCheckout(false)}
